@@ -1551,7 +1551,7 @@ async function menu(client) {
 		
 	        if (await checarUpdates()) {
 		  console.log(
-			`        ${cor}[!]${reset} Há uma atualização disponível, vá em https://github.com/147organization/147clear`,
+			`        ${cor}[!]${reset} Há uma atualização disponível, vá em https://github.com/147enterprise/147clear`,
     	          );
 	        }
 		
