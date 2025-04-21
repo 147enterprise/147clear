@@ -1573,7 +1573,7 @@ async function checarUpdates() {
 		(
 			await (
 				await fetch(
-					"https://api.github.com/repos/147organization/147clear/releases/latest",
+					"https://api.github.com/repos/147enterprise/147clear/releases/latest",
 				)
 			).json()
 		).tag_name !== VERSAO_ATUAL
