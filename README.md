@@ -17,7 +17,7 @@
 
 1. **Clone o repositório:**
     ```sh
-    git clone https://github.com/147organization/147clear.git
+    git clone https://github.com/147enterprise/147clear.git
     cd 147clear
     ```
 
@@ -45,7 +45,7 @@
 
 2. **Clone o repositório:**
     ```sh
-    git clone https://github.com/147organization/147clear.git
+    git clone https://github.com/147enterprise/147clear.git
     ```
 
 3. **Adentre a pasta do repositório:**
@@ -93,7 +93,7 @@ Para contribuir com o projeto, siga estes passos:
 1. **Crie um fork do repositório.**
 2. **Clone seu fork:**
     ```sh
-    git clone https://github.com/147organization/147clear.git
+    git clone https://github.com/147enterprise/147clear.git
     cd 147clear
     ```
 
