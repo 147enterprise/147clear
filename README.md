@@ -73,17 +73,17 @@ Você pode transformar este script em um executável usando o `pkg`.
 
 2. **Instale as dependências**
     ```sh
-    npm install && npm install -g pkg
+    npm install && npm install -g @yao-pkg/pkg
     ```
 
 3. **Compile o script:**
     ```sh
-    pkg -t node16 index.js -o 147Clear.exe
+    pkg index.js
     ```
 
 4. **Execute o executável:**
     ```sh
-    ./147Clear.exe
+    ./index-*
     ```
 
 ## Abrir um Commit

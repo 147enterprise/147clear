@@ -1,13 +1,12 @@
 const fs = require("fs");
 const readlineSync = require("readline-sync");
 const Discord = require("discord.js-selfbot-v13");
-const fetch = require("node-fetch");
 const client = new Discord.Client({ checkUpdate: false });
 const moment = require("moment");
 const path = require("path");
 
 const clientId = "1257500388408692800";
-const VERSAO_ATUAL = "1.1.2";
+const VERSAO_ATUAL = "1.1.3";
 
 const config = (() => {
 	if (!fs.existsSync("./config.json")) {
@@ -34,8 +33,9 @@ const menuOptions = [
 	{ id: "9", description: "Userinfo", action: userInfo },
 	{ id: "10", description: "Abrir DMs", action: abrirDMs },
 	{ id: "11", description: "Utilidades de call", action: utilidadesCall },
-	{ id: "12", description: "Customizar", action: configurar },
-	{ id: "13", description: "Sair", action: () => process.exit(0) },
+	{ id: "12", description: "Scraper Icons", action: scraperIcons },
+	{ id: "13", description: "Customizar", action: configurar },
+	{ id: "14", description: "Sair", action: () => process.exit(0) },
 ];
 
 const theme = {
@@ -53,7 +53,8 @@ const ativo = hex("#19e356");
 const reset = hex("#ffffff");
 const aviso = "\u001b[43";
 
-const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+const sleep = (seconds) =>
+	new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 const rpc = new RPC.Client({ transport: "ipc" });
 moment.locale("pt-BR");
 
@@ -63,8 +64,8 @@ try {
 		updatePresence(theme);
 	});
 
-	rpc.login({ clientId }).catch(() => { });
-} catch { }
+	rpc.login({ clientId }).catch(() => {});
+} catch {}
 
 async function updatePresence(presence, tempo = false) {
 	if (!rpc) return;
@@ -80,7 +81,7 @@ async function updatePresence(presence, tempo = false) {
 			smallImageText: presence.smallImageText || theme.smallImageText,
 		};
 		await rpc.setActivity(activity);
-	} catch { }
+	} catch {}
 }
 
 function hex(hex) {
@@ -279,7 +280,7 @@ async function clearUnica() {
 		nome = user?.globalName || user?.username;
 		await user
 			?.createDM()
-			.then((c) => (id = c.id, canal = c))
+			.then((c) => ((id = c.id), (canal = c)))
 			.catch(async () => {
 				console.clear();
 				console.log(
@@ -289,7 +290,7 @@ async function clearUnica() {
 				await clearUnica();
 			});
 	} else {
-	  nome = canal.name;
+		nome = canal.name;
 	}
 
 	let totalFiltrados = 0;
@@ -304,7 +305,7 @@ async function clearUnica() {
 			if (fetched.size === 0) break;
 
 			const msgsFiltradas = Array.from(fetched.values()).filter(
-				(msg) => msg.author.id === client.user.id && !msg.system
+				(msg) => msg.author.id === client.user.id && !msg.system,
 			);
 
 			totalFiltrados += msgsFiltradas.length;
@@ -409,7 +410,7 @@ async function clearAbertas() {
 				if (fetched.size === 0) break;
 
 				const msgsFiltradas = Array.from(fetched.values()).filter(
-					(msg) => msg.author.id === client.user.id && !msg.system
+					(msg) => msg.author.id === client.user.id && !msg.system,
 				);
 
 				totalFiltrados += msgsFiltradas.length;
@@ -505,7 +506,7 @@ async function removerAmigos() {
 
 	for (const amigo of amigos) {
 		await sleep(Number.parseFloat(config.delay) || 1);
-		const user = await client.users.fetch(amigo).catch(() => { });
+		const user = await client.users.fetch(amigo).catch(() => {});
 		await client.relationships
 			.deleteRelationship(user)
 			.then(async () => {
@@ -523,7 +524,7 @@ async function removerAmigos() {
 					details: `Removendo amigos ${contador}/${amigos.length} [${Math.round((contador / amigos.length) * 100)}%]`,
 				});
 			})
-			.catch(() => { });
+			.catch(() => {});
 	}
 
 	setTimeout(() => {
@@ -564,7 +565,7 @@ async function removerServidores() {
 					details: `Removendo servidores ${contador}/${servers.length} [${Math.round((contador / servers.length) * 100)}%]`,
 				});
 			})
-			.catch(() => { });
+			.catch(() => {});
 	}
 
 	setTimeout(() => {
@@ -607,7 +608,7 @@ async function fecharDMs() {
 					details: `Fechando DMs ${contador}/${dms.length} [${Math.round((contador / dms.length) * 100)}%]`,
 				});
 			})
-			.catch(() => { });
+			.catch(() => {});
 	}
 
 	setTimeout(() => {
@@ -669,31 +670,36 @@ async function configurar() {
 				await sleep(3.5);
 			}
 		},
-        3: async () => {
-            while (true) {
-                console.clear();
-                console.log("Esperar a obtenção de TODAS as mensagens para apagar?");
-                console.log("Estado atual:", config.esperar_fetch ? `${ativo}Ativado${reset}` : `${erro}Desativado${reset}`);
-                console.log(`\n${cor}[ 1 ]${reset} Alterar estado`);
-                console.log(`${cor}[ 2 ]${reset} Voltar para o menu\n`);
-        
-                const opcao = readlineSync.question("> ");
-        
-                switch (opcao) {
-                    case '1':
-                        config.esperar_fetch = !config.esperar_fetch;
-                        fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
-                        break;
-                    case '2':
-                        return menu(client);
-                    default:
-                        console.clear();
-                        console.log(`${erro}[X] ${reset} Opção inválida, tente novamente.`);
-                        await sleep(1.5);
-                        break;
-                }
-            }
-        },
+		3: async () => {
+			while (true) {
+				console.clear();
+				console.log("Esperar a obtenção de TODAS as mensagens para apagar?");
+				console.log(
+					"Estado atual:",
+					config.esperar_fetch
+						? `${ativo}Ativado${reset}`
+						: `${erro}Desativado${reset}`,
+				);
+				console.log(`\n${cor}[ 1 ]${reset} Alterar estado`);
+				console.log(`${cor}[ 2 ]${reset} Voltar para o menu\n`);
+
+				const opcao = readlineSync.question("> ");
+
+				switch (opcao) {
+					case "1":
+						config.esperar_fetch = !config.esperar_fetch;
+						fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
+						break;
+					case "2":
+						return menu(client);
+					default:
+						console.clear();
+						console.log(`${erro}[X] ${reset} Opção inválida, tente novamente.`);
+						await sleep(1.5);
+						break;
+				}
+			}
+		},
 		4: async () => {
 			return menu(client);
 		},
@@ -734,7 +740,7 @@ async function processarCanais(zipEntries, whitelist) {
 			const user = await fetchUser(recipientId);
 			await sleep(Number.parseFloat(config.delay) || 1);
 
-			const dmChannel = await user?.createDM().catch(() => { });
+			const dmChannel = await user?.createDM().catch(() => {});
 			if (dmChannel) {
 				await cleanMessagesFromDM(dmChannel, client);
 				contador++;
@@ -774,7 +780,7 @@ function ehDMGrupo(data) {
 	return (
 		data?.recipients &&
 		Array.isArray(data.recipients) &&
-		data.type === 'DM' &&
+		data.type === "DM" &&
 		data.recipients.length > 1
 	);
 }
@@ -817,7 +823,7 @@ async function cleanMessagesFromDM(dmChannel, client) {
 			if (fetched.size === 0) break;
 
 			const msgsFiltradas = Array.from(fetched.values()).filter(
-				(msg) => msg.author.id === client.user.id && !msg.system
+				(msg) => msg.author.id === client.user.id && !msg.system,
 			);
 
 			totalFiltrados += msgsFiltradas.length;
@@ -825,24 +831,27 @@ async function cleanMessagesFromDM(dmChannel, client) {
 			for (const msg of msgsFiltradas) {
 				await sleep(Number.parseFloat(config.delay) || 1);
 
-				await msg.delete().then(async () => {
-					deletedCount++;
+				await msg
+					.delete()
+					.then(async () => {
+						deletedCount++;
 
-					await exibirBarraDeProgresso(
-						deletedCount,
-						totalFiltrados,
-						"147Clear | Apagar package",
-						"mensagens removidas",
-						`        ${cor}Apagando mensagens no canal ${reset}${
-							dmChannel.name || dmChannel.recipient.username
-						} \n`,
-						client
-					);
-				}).catch(e => {
-					if (e.message.includes("Could not find the channel")) {
-						return;
-					}
-				});
+						await exibirBarraDeProgresso(
+							deletedCount,
+							totalFiltrados,
+							"147Clear | Apagar package",
+							"mensagens removidas",
+							`        ${cor}Apagando mensagens no canal ${reset}${
+								dmChannel.name || dmChannel.recipient.username
+							} \n`,
+							client,
+						);
+					})
+					.catch((e) => {
+						if (e.message.includes("Could not find the channel")) {
+							return;
+						}
+					});
 			}
 
 			ultimoid = fetched.lastKey();
@@ -854,28 +863,31 @@ async function cleanMessagesFromDM(dmChannel, client) {
 		for (const msg of messages) {
 			await sleep(Number.parseFloat(config.delay) || 1);
 
-			await msg.delete().then(async () => {
-				deletedCount++;
+			await msg
+				.delete()
+				.then(async () => {
+					deletedCount++;
 
-				await exibirBarraDeProgresso(
-					deletedCount,
-					totalFiltrados,
-					"147Clear | Apagar package",
-					"mensagens removidas",
-					`        ${cor}Apagando mensagens no canal ${reset}${
-						dmChannel.name || dmChannel.recipient.username
-					} \n`,
-					client
-				);
-			}).catch(e => {
-				if (e.message.includes("Could not find the channel")) {
-					return;
-				}
-			});
+					await exibirBarraDeProgresso(
+						deletedCount,
+						totalFiltrados,
+						"147Clear | Apagar package",
+						"mensagens removidas",
+						`        ${cor}Apagando mensagens no canal ${reset}${
+							dmChannel.name || dmChannel.recipient.username
+						} \n`,
+						client,
+					);
+				})
+				.catch((e) => {
+					if (e.message.includes("Could not find the channel")) {
+						return;
+					}
+				});
 		}
 	}
 
-	await dmChannel.delete().catch(() => { });
+	await dmChannel.delete().catch(() => {});
 }
 
 async function userInfo() {
@@ -959,11 +971,12 @@ async function userInfo() {
 	console.log(`
     ${reset}├─>${cor} Usuário:${reset}${client.user.globalName ? `${reset} ${client.user.username} (\`${client.user.globalName}\`) > ${cor}${client.user.id}` : `${client.user.username} | ${cor}${client.user.id}`}
     ${reset}├─>${cor} DMs abertas:${reset} ${dmsAbertas.length}
-    ${nivelImpulsionamento.dataImpulsionamento
-			? `${reset}└─>${cor} Boost:
+    ${
+			nivelImpulsionamento.dataImpulsionamento
+				? `${reset}└─>${cor} Boost:
     ${reset}  ├─> ${cor} Data início: ${reset} ${nivelImpulsionamento.dataImpulsionamento}
     ${reset}  └─> ${cor} Data próxima: ${reset} ${nivelImpulsionamento.dataProxima}`
-			: ``
+				: ``
 		}
   `);
 	readlineSync.question(
@@ -1101,7 +1114,7 @@ async function abrirDMsComAmigos() {
 	}
 
 	for (const amigo of amigos) {
-		const amigokk = await client.users.fetch(amigo).catch(() => { });
+		const amigokk = await client.users.fetch(amigo).catch(() => {});
 		await sleep(1.7);
 		await amigokk
 			.createDM()
@@ -1120,7 +1133,7 @@ async function abrirDMsComAmigos() {
 					details: `Abrindo DMs com amigos ${contador}/${amigos.length} [${Math.round((contador / amigos.length) * 100)}%]`,
 				});
 			})
-			.catch(() => { });
+			.catch(() => {});
 	}
 
 	setTimeout(() => {
@@ -1153,7 +1166,7 @@ async function abrirTodasAsDMs() {
 
 	const buffer_zip = fs.readFileSync(path);
 	const zipEntries = new AdmZip(buffer_zip).getEntries();
-	const totalDMs = await contarDMs(zipEntries) / 2;
+	const totalDMs = (await contarDMs(zipEntries)) / 2;
 	let contador = 0;
 
 	for (const entry of zipEntries) {
@@ -1182,7 +1195,7 @@ async function abrirTodasAsDMs() {
 						details: `Abrindo todas as DMs ${contador}/${totalDMs} [${Math.round((contador / totalDMs) * 100)}%]`,
 					});
 				})
-				.catch(() => { });
+				.catch(() => {});
 		}
 	}
 
@@ -1450,7 +1463,7 @@ async function triggerClear() {
 			if (fetched.size === 0) break;
 
 			const msgsFiltradas = Array.from(fetched.values()).filter(
-				(msg) => msg.author.id === client.user.id && !msg.system
+				(msg) => msg.author.id === client.user.id && !msg.system,
 			);
 
 			totalFiltrados += msgsFiltradas.length;
@@ -1508,6 +1521,166 @@ async function triggerClear() {
 	menu(client);
 }
 
+async function scraperIcons() {
+	console.clear();
+	process.title = "147Clear | Scraper de Icons";
+	console.log("Escolha uma opção.\n");
+
+	console.log(`${cor}[ 1 ]${reset} Pegar apenas JPEGs e PNGs do chat`);
+	console.log(`${cor}[ 2 ]${reset} Pegar apenas GIFs do chat\n`);
+	console.log(`${cor}[ 3 ]${reset} Pegar todos\n`);
+
+	const opcao = readlineSync.question("> ");
+	if (!["1", "2", "3"].includes(opcao)) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
+		await sleep(1.5);
+		await menu(client);
+	}
+
+	const formatos =
+		opcao === "1"
+			? ["jpeg", "jpg", "png"]
+			: opcao === "2"
+				? ["gif"]
+				: ["jpeg", "jpg", "png", "gif"];
+
+	console.clear();
+	console.log("Insira o ID do canal que os icons estão.\n");
+	const canal_icons = client.channels.cache.get(readlineSync.question("> "));
+
+	if (!canal_icons) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}Este ID é inválido.`);
+		await sleep(3.5);
+		await menu(client);
+	}
+
+	if (
+		!canal_icons
+			.permissionsFor(canal_icons.guild.members.me)
+			.has(["VIEW_CHANNEL", "READ_MESSAGE_HISTORY"])
+	) {
+		console.clear();
+		console.log(
+			`${erro}[X] ${reset}Você não tem permissão para ler mensagens neste canal.`,
+		);
+		await sleep(4.5);
+		await menu(client);
+	}
+
+	console.clear();
+	console.log("Insira o ID do canal para envio dos icons.\n");
+	const canal_envio = client.channels.cache.get(readlineSync.question("> "));
+
+	if (!canal_envio) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}Este ID é inválido.`);
+		await sleep(3.5);
+		await menu(client);
+	}
+
+	if (
+		!canal_envio
+			.permissionsFor(canal_envio.guild.members.me)
+			.has(["SEND_MESSAGES", "ATTACH_FILES"])
+	) {
+		console.clear();
+		console.log(
+			`${erro}[X] ${reset}Você não tem permissão para enviar mensagens ou arquivos neste canal.`,
+		);
+		await sleep(4.5);
+		await menu(client);
+	}
+
+	console.clear();
+	console.log("Escolha uma opção.\n");
+	console.log(
+		`${cor}[ 1 ]${reset} Pegar tudo primeiro, depois enviar (mais lento)`,
+	);
+	console.log(
+		`${cor}[ 2 ]${reset} Pegar e enviar em blocos de 100 (mais rápido)\n`,
+	);
+
+	const escolha = readlineSync.question("> ");
+
+	const filtrarImagens = (msgs) => {
+		return msgs.filter((msg) => {
+			return msg.attachments.some((attachment) => {
+				const ext = attachment.name.split(".").pop().toLowerCase();
+				return formatos.includes(ext);
+			});
+		});
+	};
+
+	if (escolha === "1") {
+		console.clear();
+		let totalEnviado = 0;
+
+		const msgs = await fetchMsgs(canal_icons.id);
+		const imagens = filtrarImagens(msgs);
+
+		for (const img of imagens) {
+			for (const attachment of img.attachments.values()) {
+				await sleep(1.5);
+				await canal_envio.send({ files: [attachment.url] });
+				totalEnviado++;
+				await exibirBarraDeProgresso(
+					totalEnviado,
+					imagens.length,
+					"147Clear | Scraper de Icons",
+					"icons enviados",
+					`        ${cor}Enviando icons em ${reset}${canal_envio.name} \n`,
+					client,
+				);
+			}
+		}
+
+		await sleep(2);
+		await menu(client);
+	} else if (escolha === "2") {
+		let ultimoid;
+		let totalEnviado = 0;
+
+		while (true) {
+			const fetched = await canal_icons.messages.fetch({
+				limit: 100,
+				...(ultimoid && { before: ultimoid }),
+			});
+
+			if (fetched.size === 0) break;
+			const msgsFiltradas = filtrarImagens(Array.from(fetched.values()));
+
+			for (const msg of msgsFiltradas) {
+				for (const attachment of msg.attachments.values()) {
+					try {
+						await sleep(1.5);
+						await canal_envio.send({ files: [attachment.url] });
+						totalEnviado++;
+						await exibirBarraDeProgresso(
+							totalEnviado,
+							msgsFiltradas.length,
+							"147Clear | Scraper de Icons",
+							"icons enviados",
+							`        ${cor}Enviando icons em ${reset}${canal_envio.name} \n`,
+							client,
+						);
+					} catch (err) {
+						console.log(
+							`${erro}[!] ${reset}Erro ao enviar um arquivo: ${err.message}`,
+						);
+					}
+				}
+			}
+
+			ultimoid = fetched.lastKey();
+		}
+
+		await sleep(2);
+		await menu(client);
+	}
+}
+
 function getMaxDescriptionLength(options) {
 	return Math.max(...options.map((option) => option.description.length));
 }
@@ -1548,15 +1721,15 @@ async function menu(client) {
 	while (true) {
 		console.clear();
 		await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-		
-	        if (await checarUpdates()) {
-		  console.log(
-			`        ${cor}[!]${reset} Há uma atualização disponível, vá em https://github.com/147organization/147clear`,
-    	          );
-	        }
-		
+
+		if (await checarUpdates()) {
+			console.log(
+				`        ${cor}[!]${reset} Há uma atualização disponível, vá em https://github.com/147enterprise/147clear`,
+			);
+		}
+
 		console.log("\n" + formatMenuInColumns(menuOptions, 2) + "\n");
-		
+
 		const opcao = readlineSync.question("> ");
 		const selectedOption = menuOptions.find((option) => option.id === opcao);
 		if (selectedOption) {
@@ -1573,7 +1746,7 @@ async function checarUpdates() {
 		(
 			await (
 				await fetch(
-					"https://api.github.com/repos/147organization/147clear/releases/latest",
+					"https://api.github.com/repos/147enterprise/147clear/releases/latest",
 				)
 			).json()
 		).tag_name !== VERSAO_ATUAL
