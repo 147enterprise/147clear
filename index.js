@@ -58,29 +58,31 @@ const sleep = (seconds) =>
 const rpc = new RPC.Client({ transport: "ipc" });
 moment.locale("pt-BR");
 
-try {
-	RPC.register(clientId);
-	rpc.on("ready", () => {
-		updatePresence(theme);
-	});
-
-	rpc.login({ clientId }).catch(() => {});
-} catch {}
+if (!config.desativar_rpc) {
+        try {
+	        RPC.register(clientId);
+	        rpc.on("ready", () => {
+		        updatePresence(theme);
+	        });
+	        rpc.login({ clientId }).catch(() => {});
+        } catch {}
+}
 
 async function updatePresence(presence, tempo = false) {
-	if (!rpc) return;
+	if (!rpc || config.desativar_rpc) return;
+	
+	const activity = {
+	        pid: process.pid,
+		state: presence.state || theme.state,
+		details: presence.details || theme.details,
+		largeImageKey: presence.largeImageKey || theme.largeImageKey,
+		largeImageText: presence.largeImageText || theme.largeImageText,
+		smallImageKey: presence.smallImageKey || theme.smallImageKey,
+		smallImageText: presence.smallImageText || theme.smallImageText,
+	};
 
 	try {
-		const activity = {
-			pid: process.pid,
-			state: presence.state || theme.state,
-			details: presence.details || theme.details,
-			largeImageKey: presence.largeImageKey || theme.largeImageKey,
-			largeImageText: presence.largeImageText || theme.largeImageText,
-			smallImageKey: presence.smallImageKey || theme.smallImageKey,
-			smallImageText: presence.smallImageText || theme.smallImageText,
-		};
-		await rpc.setActivity(activity);
+	        await rpc.setActivity(activity).catch(() => {});
 	} catch {}
 }
 
