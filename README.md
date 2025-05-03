@@ -65,6 +65,33 @@
 
 6. **Siga as instruções no terminal para navegar pelos menus e executar as ações desejadas.**
 
+## Como desativar o Rich Presence do Perfil?
+
+1. Edite o arquivo `config.json` com um editor de texto.
+
+2. Adicione a linha ao arquivo
+   ```json
+   "desativar_rpc": true,
+   ```
+   
+3. O arquivo deve ficar mais ou menos assim:
+  ```json
+ {
+    "tokens": [],
+    "cor_painel": "#A020F0",
+    "esperar_fetch": false,
+    "desativar_rpc": true,
+    "delay": "1",
+    "kosame": {
+        "ativado": false,
+        "canal": "",
+        "tokens": []
+    }
+}
+```
+
+4. Salve o arquivo e inicie o Clear novamente.
+
 ## Transformar em Executável
 
 Você pode transformar este script em um executável usando o `pkg`.
