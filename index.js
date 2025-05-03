@@ -82,7 +82,7 @@ async function updatePresence(presence, tempo = false) {
 	};
 
 	try {
-	        await rpc.setActivity(activity).catch(() => {});
+	        await rpc.setActivity(activity);
 	} catch {}
 }
 
