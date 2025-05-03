@@ -69,7 +69,7 @@
 
 1. Edite o arquivo `config.json` com um editor de texto.
 
-2. Adicione a linha ao arquivo
+2. Adicione esta linha ao arquivo:
    ```json
    "desativar_rpc": true,
    ```
