@@ -7,5 +7,6 @@
         "ativado": false,
         "canal": "",
         "tokens": []
-    }
+    },
+    "desativar_rpc": false
 }

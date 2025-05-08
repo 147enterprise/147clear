@@ -67,30 +67,11 @@
 
 ## Como desativar o Rich Presence do Perfil?
 
-1. Edite o arquivo `config.json` com um editor de texto.
+1. Abra o Clear.
 
-2. Adicione esta linha ao arquivo:
-   ```json
-   "desativar_rpc": true,
-   ```
-   
-3. O arquivo deve ficar mais ou menos assim:
-  ```json
- {
-    "tokens": [],
-    "cor_painel": "#A020F0",
-    "esperar_fetch": false,
-    "desativar_rpc": true,
-    "delay": "1",
-    "kosame": {
-        "ativado": false,
-        "canal": "",
-        "tokens": []
-    }
-}
-```
+2. Logue na sua token e entre na opção Customizar.
 
-4. Salve o arquivo e inicie o Clear novamente.
+3. Selecione a opção Ativar/Desativar o RPC.
 
 ## Transformar em Executável
 
@@ -105,12 +86,12 @@ Você pode transformar este script em um executável usando o `pkg`.
 
 3. **Compile o script:**
     ```sh
-    pkg index.js
+    pkg .
     ```
 
 4. **Execute o executável:**
     ```sh
-    ./index-*
+    ./147clear.exe
     ```
 
 ## Abrir um Commit

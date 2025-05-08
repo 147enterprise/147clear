@@ -2,11 +2,13 @@ const fs = require("fs");
 const readlineSync = require("readline-sync");
 const Discord = require("discord.js-selfbot-v13");
 const client = new Discord.Client({ checkUpdate: false });
-const moment = require("moment");
+const lame = require("@suldashi/lame");
+const Speaker = require("speaker");
 const path = require("path");
 
 const clientId = "1257500388408692800";
-const VERSAO_ATUAL = "1.1.3";
+const VERSAO_ATUAL = "1.1.4";
+const GRAVACOES_ATIVAS = new Map();
 
 const config = (() => {
 	if (!fs.existsSync("./config.json")) {
@@ -17,9 +19,24 @@ const config = (() => {
 	);
 })();
 
+const esperarEnter = () => {
+	return new Promise((resolve) => {
+		const rl = require("readline").createInterface({
+			input: process.stdin,
+			output: process.stdout,
+		});
+
+		rl.question("", () => {
+			rl.close();
+			resolve();
+		});
+	});
+};
+
 const RPC = require("discord-rpc");
 const AdmZip = require("adm-zip");
 const child_process = require("child_process");
+const rpc = new RPC.Client({ transport: "ipc" });
 
 const menuOptions = [
 	{ id: "1", description: "Apagar DM única", action: clearUnica },
@@ -34,8 +51,9 @@ const menuOptions = [
 	{ id: "10", description: "Abrir DMs", action: abrirDMs },
 	{ id: "11", description: "Utilidades de call", action: utilidadesCall },
 	{ id: "12", description: "Scraper Icons", action: scraperIcons },
-	{ id: "13", description: "Customizar", action: configurar },
-	{ id: "14", description: "Sair", action: () => process.exit(0) },
+	{ id: "13", description: "Clonar servidores", action: clonarServidores },
+	{ id: "14", description: "Customizar", action: configurar },
+	{ id: "15", description: "Sair", action: () => process.exit(0) },
 ];
 
 const theme = {
@@ -55,24 +73,22 @@ const aviso = "\u001b[43";
 
 const sleep = (seconds) =>
 	new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-const rpc = new RPC.Client({ transport: "ipc" });
-moment.locale("pt-BR");
 
 if (!config.desativar_rpc) {
-        try {
-	        RPC.register(clientId);
-	        rpc.on("ready", () => {
-		        updatePresence(theme);
-	        });
-	        rpc.login({ clientId }).catch(() => {});
-        } catch {}
+	try {
+		RPC.register(clientId);
+		rpc.on("ready", () => {
+			updatePresence(theme);
+		});
+		rpc.login({ clientId }).catch(() => {});
+	} catch {}
 }
 
 async function updatePresence(presence, tempo = false) {
 	if (!rpc || config.desativar_rpc) return;
-	
+
 	const activity = {
-	        pid: process.pid,
+		pid: process.pid,
 		state: presence.state || theme.state,
 		details: presence.details || theme.details,
 		largeImageKey: presence.largeImageKey || theme.largeImageKey,
@@ -82,7 +98,7 @@ async function updatePresence(presence, tempo = false) {
 	};
 
 	try {
-	        await rpc.setActivity(activity);
+		await rpc.setActivity(activity);
 	} catch {}
 }
 
@@ -628,8 +644,9 @@ async function configurar() {
         ${cor}[ 1 ]${reset} Mudar delay
         ${cor}[ 2 ]${reset} Mudar cor do painel
         ${cor}[ 3 ]${reset} Esperar obtenção de todas as mensagens para apagar
+        ${cor}[ 4 ]${reset} Ativar ou desativar o Rich Presence (RPC) do perfil
         
-        ${cor}[ 4 ]${reset} Voltar
+        ${cor}[ 5 ]${reset} Voltar
   `);
 
 	const opcoes = {
@@ -703,6 +720,36 @@ async function configurar() {
 			}
 		},
 		4: async () => {
+			while (true) {
+				console.clear();
+				console.log(
+					`(Reinicie o clear após alterar o estado para aplicar as alterações)
+Estado atual do Rich Presence:`,
+					config.desativar_rpc
+						? `${ativo}Ativado${reset}`
+						: `${erro}Desativado${reset}`,
+				);
+				console.log(`\n${cor}[ 1 ]${reset} Alterar estado`);
+				console.log(`${cor}[ 2 ]${reset} Voltar para o menu\n`);
+
+				const opcao = readlineSync.question("> ");
+
+				switch (opcao) {
+					case "1":
+						config.desativar_rpc = !config.desativar_rpc;
+						fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
+						break;
+					case "2":
+						return menu(client);
+					default:
+						console.clear();
+						console.log(`${erro}[X] ${reset} Opção inválida, tente novamente.`);
+						await sleep(1.5);
+						break;
+				}
+			}
+		},
+		5: async () => {
 			return menu(client);
 		},
 		default: async () => {
@@ -894,10 +941,10 @@ async function cleanMessagesFromDM(dmChannel, client) {
 
 async function userInfo() {
 	console.clear();
-
 	process.title = "147Clear | Informações do Usuário";
 
 	await titulo(client.user.username, client.user.id);
+
 	const impulsionamento =
 		await client.api.users[client.user.id]["profile"].get();
 	const dmsAbertas = await client.api.users["@me"]["channels"].get();
@@ -905,73 +952,48 @@ async function userInfo() {
 	let nivelImpulsionamento = {};
 
 	if (impulsionamento.premium_guild_since) {
-		const dataImpulsionamento = moment(impulsionamento.premium_guild_since);
-		const agora = moment();
+		const dataImpulsionamento = new Date(impulsionamento.premium_guild_since);
+		const agora = new Date();
 
+		const diffMeses = diferencaEmMeses(dataImpulsionamento, agora);
 		const niveisMeses = [1, 2, 3, 6, 9, 12, 15, 18, 24];
-		const diff_meses = agora.diff(dataImpulsionamento, "months");
 
 		let previous = 0;
 		let next = 0;
 
-		for (const months of niveisMeses) {
-			if (diff_meses >= months) {
-				previous = months;
+		for (const meses of niveisMeses) {
+			if (diffMeses >= meses) {
+				previous = meses;
 			} else {
-				next = months;
+				next = meses;
 				break;
 			}
 		}
 
-		if (diff_meses < 1) {
+		if (diffMeses < 1) {
 			previous = 1;
 			next = 2;
 		}
 
-		const formatarDuracao = (duration) => {
-			const partes = [];
-			const anos = duration.years();
-			const meses = duration.months();
-			const dias = duration.days();
-			const horas = duration.hours();
-			const minutos = duration.minutes();
+		const duracaoAteAgora = calcularDuracao(dataImpulsionamento, agora);
 
-			if (anos > 0) partes.push(`${anos} ano${anos > 1 ? "s" : ""}`);
-			if (meses > 0) partes.push(`${meses} mês${meses > 1 ? "es" : ""}`);
-			if (dias > 0) partes.push(`${dias} dia${dias > 1 ? "s" : ""}`);
-			if (horas > 0) partes.push(`${horas} hora${horas > 1 ? "s" : ""}`);
-			if (minutos > 0)
-				partes.push(`${minutos} minuto${minutos > 1 ? "s" : ""}`);
-
-			if (partes.length > 1) {
-				const ultimo = partes.pop();
-				return partes.join(", ") + " e " + ultimo;
-			}
-			return partes[0];
-		};
-
-		const calcularProximaData = (inicio, meses) => {
-			return moment(inicio).add(meses, "months");
-		};
-
-		if (diff_meses >= 24) {
+		if (diffMeses >= 24) {
 			nivelImpulsionamento = {
-				dataImpulsionamento: `${dataImpulsionamento.format("lll")} (Há ${formatarDuracao(moment.duration(agora.diff(dataImpulsionamento)))})`,
+				dataImpulsionamento: `${formatarData(dataImpulsionamento)} (Há ${duracaoAteAgora})`,
 				dataProxima: "Não sobe mais de nível",
 			};
 		} else {
-			const dataProxima = calcularProximaData(dataImpulsionamento, next);
+			const dataProxima = adicionarMeses(dataImpulsionamento, next);
+			const duracaoRestante = calcularDuracao(agora, dataProxima);
 			nivelImpulsionamento = {
-				dataImpulsionamento: `${dataImpulsionamento.format("lll")} (Há ${formatarDuracao(moment.duration(agora.diff(dataImpulsionamento)))})`,
-				dataProxima: `${dataProxima.format("lll")} (Em ${formatarDuracao(moment.duration(dataProxima.diff(agora)))})`,
+				dataImpulsionamento: `${formatarData(dataImpulsionamento)} (Há ${duracaoAteAgora})`,
+				dataProxima: `${formatarData(dataProxima)} (Em ${duracaoRestante})`,
 			};
 		}
-	} else {
-		nivelImpulsionamento = {};
 	}
 
 	console.log(`
-    ${reset}├─>${cor} Usuário:${reset}${client.user.globalName ? `${reset} ${client.user.username} (\`${client.user.globalName}\`) > ${cor}${client.user.id}` : `${client.user.username} | ${cor}${client.user.id}`}
+    ${reset}├─>${cor} Usuário:${reset}${client.user.globalName ? ` ${client.user.username} (\`${client.user.globalName}\`) > ${cor}${client.user.id}` : `${client.user.username} | ${cor}${client.user.id}`}
     ${reset}├─>${cor} DMs abertas:${reset} ${dmsAbertas.length}
     ${
 			nivelImpulsionamento.dataImpulsionamento
@@ -981,10 +1003,52 @@ async function userInfo() {
 				: ``
 		}
   `);
+
 	readlineSync.question(
 		`${cor}>${reset} Aperte ${cor}ENTER${reset} para voltar`,
 	);
 	menu(client);
+
+	function diferencaEmMeses(inicio, fim) {
+		const anos = fim.getFullYear() - inicio.getFullYear();
+		const meses = fim.getMonth() - inicio.getMonth();
+		return anos * 12 + meses - (fim.getDate() < inicio.getDate() ? 1 : 0);
+	}
+
+	function adicionarMeses(data, meses) {
+		const novaData = new Date(data.getTime());
+		novaData.setMonth(novaData.getMonth() + meses);
+		return novaData;
+	}
+
+	function calcularDuracao(inicio, fim) {
+		let delta = Math.floor((fim - inicio) / 1000);
+		const minutos = Math.floor(delta / 60) % 60;
+		const horas = Math.floor(delta / 3600) % 24;
+		const dias = Math.floor(delta / 86400) % 30;
+		const meses = Math.floor(delta / 2592000) % 12;
+		const anos = Math.floor(delta / 31104000);
+
+		const partes = [];
+		if (anos > 0) partes.push(`${anos} ano${anos > 1 ? "s" : ""}`);
+		if (meses > 0) partes.push(`${meses} mês${meses > 1 ? "es" : ""}`);
+		if (dias > 0) partes.push(`${dias} dia${dias > 1 ? "s" : ""}`);
+		if (horas > 0) partes.push(`${horas} hora${horas > 1 ? "s" : ""}`);
+		if (minutos > 0) partes.push(`${minutos} minuto${minutos > 1 ? "s" : ""}`);
+
+		if (partes.length > 1) {
+			const ultimo = partes.pop();
+			return partes.join(", ") + " e " + ultimo;
+		}
+		return partes[0] || "menos de um minuto";
+	}
+
+	function formatarData(data) {
+		return new Intl.DateTimeFormat("pt-BR", {
+			dateStyle: "medium",
+			timeStyle: "short",
+		}).format(data);
+	}
 }
 
 async function clearPackage() {
@@ -1249,178 +1313,561 @@ async function selecionarArquivoZip() {
 
 async function utilidadesCall() {
 	console.clear();
-
 	process.title = "147Clear | Utilidades de call";
 
-	console.log(`
-    Você deseja desconectar ou mover todos da call?
-    
-    ${cor}[ 1 ]${reset} Desconectar
-    ${cor}[ 2 ]${reset} Mover
+	const escolherOpcao = () => {
+		console.log(`
+    Escolha uma opção.
+
+    ${cor}[ 1 ]${reset} Desconectar todos da call
+    ${cor}[ 2 ]${reset} Mover todos da call
+    ${cor}[ 3 ]${reset} Gravar áudio da call
+    ${cor}[ 4 ]${reset} Farmar hora em call
+    ${cor}[ 5 ]${reset} Ouvir call com fone mutado
+	
+    ${cor}[ 6 ]${reset} Voltar
+		`);
+		return readlineSync.question("> ");
+	};
+
+	const confirmarAcao = async (mensagem) => {
+		console.clear();
+		console.log(`
+    ${mensagem}
+
+    ${cor}[ 1 ]${reset} Sim
+    ${cor}[ 2 ]${reset} Não
+		`);
+		return readlineSync.question("> ") === "1";
+	};
+
+	const obterCanalVoz = (id) => {
+		const canal = client.channels.cache.get(id);
+		return canal?.type === "GUILD_VOICE" ? canal : null;
+	};
+
+	const voltarMenu = async () => {
+		await sleep(1.5);
+		await menu(client);
+	};
+
+	const moverMembros = async () => {
+		console.clear();
+		console.log("Digite o ID da call de origem.");
+		const idOrigem = readlineSync.question("> ");
+		console.clear();
+
+		console.log("Digite o ID da call de destino.");
+		const idDestino = readlineSync.question("> ");
+
+		if (!(await confirmarAcao("Tem certeza que deseja mover os usuários?"))) {
+			console.clear();
+			return voltarMenu();
+		}
+
+		const canalOrigem = obterCanalVoz(idOrigem);
+		const canalDestino = obterCanalVoz(idDestino);
+
+		if (!canalOrigem || !canalDestino) {
+			console.clear();
+			console.log(`${erro}[X]${reset} ID inválido.`);
+			return sleep(3.5).then(() => menu(client));
+		}
+
+		if (!canalOrigem.members.size) {
+			console.clear();
+			console.log(`${erro}[X]${reset} A call está vazia.`);
+			return sleep(3.5).then(() => menu(client));
+		}
+
+		for (const member of canalOrigem.members.values()) {
+			if (canalDestino.locked || canalDestino.full) {
+				console.clear();
+				console.log(`${erro}[X]${reset} A call está privada ou lotada.`);
+				return sleep(3.5).then(() => menu(client));
+			}
+
+			try {
+				await member.voice.setChannel(canalDestino.id);
+				if (member.id !== client.user.id) {
+					console.log(
+						`${cor}[+]${reset} ${member.user.username} movido para ${canalDestino.name}`,
+					);
+				}
+			} catch (err) {
+				if (err.message === "Missing Permissions") {
+					console.clear();
+					console.log(`${erro}[X]${reset} Você não tem permissão.`);
+					return sleep(3.5).then(() => menu(client));
+				}
+			}
+		}
+		await menu(client);
+	};
+
+	const gravarCall = async () => {
+		console.clear();
+		console.log(`
+    Escolha uma opção.
+
+    ${cor}[ 1 ]${reset} Gravar áudio de pessoas específicas
+    ${cor}[ 2 ]${reset} Gravar áudio de todos
 	
     ${cor}[ 3 ]${reset} Voltar
-  `);
-	const move_ou_disconnect = readlineSync.question("> ");
-	console.clear();
+		`);
+		const escolha = readlineSync.question("> ");
+		if (escolha === "3") return await menu(client);
 
-	switch (move_ou_disconnect) {
-		case "2":
-			console.log("Digite o ID da call que os membros estão");
-			const disconnectChannelId = readlineSync.question("> ");
-
+		if (!["1", "2"].includes(escolha)) {
 			console.clear();
-			console.log("Digite o ID da call que os membros vão ser movidos");
-			const moveChannelId = readlineSync.question("> ");
+			console.log(`${erro}[X]${reset} Opção inválida.`);
+			return sleep(3.5).then(() => menu(client));
+		}
 
+		console.clear();
+		console.log("Digite o ID da call que você deseja gravar o áudio.");
+		const idCall = readlineSync.question("> ");
+		const canal = client.channels.cache.get(idCall);
+
+		if (!canal || canal.type !== "GUILD_VOICE") {
 			console.clear();
-			console.log(`
-    Tem certeza que deseja fazer isso?
-        
-    ${cor}[ 1 ]${reset} Sim
-    ${cor}[ 2 ]${reset} Não
-      `);
-			const confirmMove = readlineSync.question("> ");
-			if (confirmMove !== "1") {
-				console.clear();
-				await sleep(1.5);
-				await menu(client);
-				return;
-			}
+			console.log(`${erro}[X]${reset} ID inválido.`);
+			return sleep(3.5).then(() => menu(client));
+		}
 
-			const disconnectChannel = client.channels.cache.get(disconnectChannelId);
-			const moveChannel = client.channels.cache.get(moveChannelId);
-
-			if (
-				!disconnectChannel ||
-				!moveChannel ||
-				disconnectChannel.type !== "GUILD_VOICE" ||
-				moveChannel.type !== "GUILD_VOICE"
-			) {
-				console.clear();
-				console.log(`${erro}[X]${reset} ID inválido.`);
-				await sleep(3.5);
-				await menu(client);
-				return;
-			}
-
-			if (!disconnectChannel.members.size) {
-				console.clear();
-				console.log(`${erro}[X]${reset} A call está vazia.`);
-				await sleep(3.5);
-				await menu(client);
-				return;
-			}
-
-			const members = Array.from(disconnectChannel.members.values());
-			let deuerro = false;
-
-			for (const member of members) {
-				if (moveChannel.locked || moveChannel.full) {
-					console.clear();
-					console.log(`${erro}[X]${reset} A call está privada ou lotada.`);
-					await sleep(3.5);
-					await menu(client);
-					break;
-				}
-
-				try {
-					await disconnectChannel.members
-						.get(member.id)
-						.voice.setChannel(moveChannel.id);
-					if (member.id !== client.user.id) {
-						console.log(
-							`${cor}[+]${reset} ${member.user.username} movido para o canal ${moveChannel.name}`,
-						);
-					}
-				} catch (err) {
-					if (err.message === "Missing Permissions") {
-						if (!deuerro) {
-							console.clear();
-							console.log(`${erro}[X]${reset} Você não tem permissão.`);
-							await sleep(3.5);
-							await menu(client);
-							deuerro = true;
-						}
-						break;
-					}
-				}
-			}
-			await menu(client);
-			break;
-		case "1":
+		if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
+			console.clear();
 			console.log(
-				"Digite o ID da call que você deseja desconectar todos os usuários",
+				`${erro}[X] ${reset}Você não tem permissão para entrar neste canal.`,
 			);
-			const moveChannelId2 = readlineSync.question("> ");
-			console.clear();
+			await sleep(4.5);
+			await menu(client);
+		}
 
-			console.log(`
-    Tem certeza que deseja fazer isso?
-        
+		if (
+			canal.members.size >= canal.userLimit &&
+			!canal.permissionsFor(canal.guild.members.me).has("MOVE_MEMBERS")
+		) {
+			console.clear();
+			console.log(`${erro}[X] ${reset}A call está lotada.`);
+			await sleep(4.5);
+			await menu(client);
+		}
+
+		let idsPermitidos = [];
+
+		if (escolha === "1") {
+			console.clear();
+			console.log("Digite os IDs dos usuários que deseja gravar (id, id).");
+			const idsStr = await readlineSync.question("> ");
+			idsPermitidos = idsStr.split(",").map((id) => id.trim());
+		}
+
+		console.clear();
+		console.log(`
+    Deseja escutar o áudio da call enquanto grava?
+
     ${cor}[ 1 ]${reset} Sim
     ${cor}[ 2 ]${reset} Não
-      `);
-			const confirmDisconnect = readlineSync.question("> ");
+	    `);
+		const escutarAoVivo = readlineSync.question("> ");
+		const deveOuvir = escutarAoVivo === "1";
 
-			if (confirmDisconnect !== "1") {
-				console.clear();
-				await sleep(1.5);
-				await menu(client);
-				return;
+		const connection = await client.voice.joinChannel(canal, {
+			selfMute: true,
+			selfDeaf: true,
+			selfVideo: false,
+		});
+
+		connection.on("speaking", (user, speaking) => {
+			if (!user) return;
+			const userId = user.id;
+
+			if (speaking.bitfield) {
+				if (!GRAVACOES_ATIVAS.has(userId)) {
+					if (escolha === "2" || idsPermitidos.includes(userId)) {
+						comecarGravacao(connection, user, deveOuvir);
+					}
+				}
+			} else {
+				const active = GRAVACOES_ATIVAS.get(userId);
+				if (active?.stream) {
+					active.stream.destroy();
+					GRAVACOES_ATIVAS.delete(userId);
+				}
+			}
+		});
+
+		async function comecarGravacao(connection, user) {
+			const timestamp = Date.now();
+			const mp3FileName = `${user.username}-${timestamp}.mp3`;
+			const outputPath = path.join(
+				process.pkg ? process.cwd() : __dirname,
+				"gravacoes_call",
+			);
+
+			if (!fs.existsSync(outputPath)) {
+				fs.mkdirSync(outputPath);
 			}
 
-			const moveChannel2 = client.channels.cache.get(moveChannelId2);
-			if (!moveChannel2 || moveChannel2.type !== "GUILD_VOICE") {
+			const mp3Path = path.join(outputPath, mp3FileName);
+			const fileStream = fs.createWriteStream(mp3Path);
+
+			const audioStream = connection.receiver.createStream(user, {
+				mode: "pcm",
+				end: "manual",
+			});
+
+			const encoder = new lame.Encoder({
+				channels: 2,
+				bitDepth: 16,
+				sampleRate: 48000,
+				bitRate: 128,
+				outSampleRate: 16000,
+				mode: lame.MONO,
+			});
+
+			let speaker;
+			if (deveOuvir) {
+				speaker = new Speaker({
+					channels: 2,
+					bitDepth: 16,
+					sampleRate: 48000,
+				});
+				audioStream.pipe(speaker);
+			}
+			audioStream.pipe(encoder).pipe(fileStream);
+
+			console.clear();
+			await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+			console.log(
+				`  ${cor}[+]${reset} Gravando áudio de ${cor}${user.username}${reset}...`,
+			);
+			console.log(
+				`  ${cor}[+]${reset} Salvando na pasta ${cor}gravacoes_call${reset}.\n`,
+			);
+			console.log(`  Aperte ${cor}ENTER${reset} para parar de gravar.`);
+
+			GRAVACOES_ATIVAS.set(user.id, { stream: audioStream });
+			audioStream.on("end", () => {
+				audioStream.unpipe(encoder);
+				audioStream.unpipe(speaker);
+				encoder.end();
+				GRAVACOES_ATIVAS.delete(user.id);
+			});
+		}
+
+		await esperarEnter();
+		if (connection) await connection.disconnect();
+		await menu(client);
+	};
+
+	const farmarHora = async () => {
+		console.clear();
+		console.log(`
+    Escolha uma opção.
+         
+    ${cor}[ 1 ]${reset} Farmar em call específica
+    ${cor}[ 2 ]${reset} Farmar em calls aleatórias
+    	`);
+
+		const escolha = readlineSync.question("> ");
+
+		if (!["1", "2"].includes(escolha)) {
+			console.clear();
+			console.log(`${erro}[X]${reset} Opção inválida, tente novamente.`);
+			await sleep(4);
+			return await menu(client);
+		}
+
+		let canalSelecionado;
+
+		if (escolha === "1") {
+			console.clear();
+			console.log("Digite o ID da call que você deseja farmar.");
+			const idCall = readlineSync.question("> ");
+			const canal = client.channels.cache.get(idCall);
+
+			if (!canal || canal.type !== "GUILD_VOICE") {
 				console.clear();
 				console.log(`${erro}[X]${reset} ID inválido.`);
 				await sleep(3.5);
-				await menu(client);
-				return;
+				return await menu(client);
 			}
 
-			if (!moveChannel2.members.size) {
+			if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
 				console.clear();
-				console.log(`${erro}[X]${reset} A call está vazia.`);
+				console.log(`${erro}[X]${reset} Sem permissão para entrar na call.`);
 				await sleep(3.5);
-				await menu(client);
-				return;
+				return await menu(client);
 			}
 
-			const members2 = Array.from(moveChannel2.members.values());
-			let deuerrokk = false;
+			canalSelecionado = canal;
+		} else {
+			console.clear();
+			console.log("Digite o ID do servidor onde deseja farmar.");
+			const idGuild = readlineSync.question("> ");
+			const guild = client.guilds.cache.get(idGuild);
 
-			for (const member of members2) {
-				const user = client.users.cache.get(member.id);
-				try {
-					await moveChannel2.members.get(member.id).voice.setChannel(null);
-					console.log(
-						`${cor}[+]${reset} ${user.tag} desconectado da call ${moveChannel2.name}`,
-					);
-				} catch (err) {
-					if (err.message === "Missing Permissions") {
-						if (!deuerrokk) {
-							console.clear();
-							console.log(`${erro}[X]${reset} Você não tem permissão.`);
-							await sleep(3.5);
-							await menu(client);
-							deuerrokk = true;
-						}
-						break;
-					}
+			if (!guild) {
+				console.clear();
+				console.log(`${erro}[X]${reset} Servidor não encontrado.`);
+				await sleep(3.5);
+				return await menu(client);
+			}
+
+			console.clear();
+			console.log(
+				"Tem uma categoria específica? se sim, insira o ID. se não, deixe vazio e aperte ENTER.",
+			);
+			const categoria = readlineSync.question("> ");
+
+			const calls = guild.channels.cache.filter(
+				(c) =>
+					c.type === "GUILD_VOICE" &&
+					c.members.size === 0 &&
+					c.permissionsFor(guild.members.me).has("CONNECT") &&
+					(!categoria || c.parentId === categoria),
+			);
+
+			if (!calls.size) {
+				console.clear();
+				console.log(`${erro}[X]${reset} Nenhuma call vazia disponível.`);
+				await sleep(3.5);
+				return await menu(client);
+			}
+
+			canalSelecionado = calls.random();
+		}
+
+		let connection;
+		let iniciou = Date.now();
+
+		const conectar = async () => {
+			try {
+				connection = await client.voice.joinChannel(canalSelecionado, {
+					selfMute: false,
+					selfDeaf: false,
+					selfVideo: false,
+				});
+			} catch (err) {
+				console.log(`${erro}[X]${reset} Erro ao conectar: ${err.message}`);
+				await sleep(3.5);
+				return await menu(client);
+			}
+		};
+
+		await conectar();
+
+		const atualizarTempo = setInterval(() => {
+			const tempo = Date.now() - iniciou;
+			const segundos = Math.floor((tempo / 1000) % 60);
+			const minutos = Math.floor((tempo / 1000 / 60) % 60);
+			const horas = Math.floor(tempo / 1000 / 60 / 60);
+
+			console.clear();
+			titulo(client?.user?.username || "a", client?.user?.id || "ww");
+
+			console.log(
+				`  ${cor}[+]${reset} Farmando por ${horas} horas, ${minutos} minutos e ${segundos} segundos.\n`,
+			);
+			console.log(`  Aperte ${cor}ENTER${reset} para parar de farmar.`);
+		}, 1000);
+
+		const voiceUpdateListener = async (oldState, newState) => {
+			if (
+				oldState.member.id === client.user.id &&
+				oldState.channelId &&
+				!newState.channelId
+			) {
+				await sleep(2);
+				await conectar();
+			}
+		};
+
+		client.on("voiceStateUpdate", voiceUpdateListener);
+		await esperarEnter();
+
+		client.off("voiceStateUpdate", voiceUpdateListener);
+		if (connection) await connection.disconnect();
+
+		clearInterval(atualizarTempo);
+		await menu(client);
+	};
+
+	const ouvirCall = async () => {
+		console.clear();
+		console.log(`
+    Escolha uma opção.
+    
+    ${cor}[ 1 ]${reset} Ouvir áudio de pessoas específicas
+    ${cor}[ 2 ]${reset} Ouvir áudio de todos
+    
+    ${cor}[ 3 ]${reset} Voltar
+    	`);
+
+		const escolha = readlineSync.question("> ").trim();
+		if (escolha === "3") return await menu(client);
+
+		let idsPermitidos = [];
+
+		if (escolha === "1") {
+			console.clear();
+			console.log("Digite os IDs dos usuários que deseja ouvir (id, id).");
+			const idsStr = readlineSync.question("> ");
+			idsPermitidos = idsStr.split(",").map((id) => id.trim());
+		}
+
+		console.clear();
+		console.log("Digite o ID da call que você deseja ouvir mutado.");
+		const idCall = readlineSync.question("> ");
+		const canal = client.channels.cache.get(idCall);
+
+		if (!canal || canal.type !== "GUILD_VOICE") {
+			console.clear();
+			console.log(`${erro}[X]${reset} ID inválido.`);
+			return sleep(3.5).then(() => menu(client));
+		}
+
+		if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
+			console.clear();
+			console.log(
+				`${erro}[X] ${reset}Você não tem permissão para entrar neste canal.`,
+			);
+			await sleep(4.5);
+			return await menu(client);
+		}
+
+		if (
+			canal.members.size >= canal.userLimit &&
+			!canal.permissionsFor(canal.guild.members.me).has("MOVE_MEMBERS")
+		) {
+			console.clear();
+			console.log(`${erro}[X] ${reset}A call está lotada.`);
+			await sleep(4.5);
+			return await menu(client);
+		}
+
+		const GRAVACOES_ATIVAS = new Map();
+
+		const connection = await client.voice.joinChannel(canal, {
+			selfMute: true,
+			selfDeaf: true,
+			selfVideo: false,
+		});
+
+		connection.on("speaking", async (user, speaking) => {
+			if (!user) return;
+
+			if (escolha === "1" && !idsPermitidos.includes(user.id)) return;
+
+			if (speaking.bitfield) {
+				if (!GRAVACOES_ATIVAS.has(user.id)) {
+					await comecarGravacao(connection, user);
+				}
+			} else {
+				const active = GRAVACOES_ATIVAS.get(user.id);
+				if (active?.stream) {
+					active.stream.destroy();
+					GRAVACOES_ATIVAS.delete(user.id);
 				}
 			}
+		});
 
-			await menu(client);
-			break;
+		async function comecarGravacao(connection, user) {
+			const audioStream = connection.receiver.createStream(user, {
+				mode: "pcm",
+				end: "manual",
+			});
+
+			const speaker = new Speaker({
+				channels: 2,
+				bitDepth: 16,
+				sampleRate: 48000,
+			});
+
+			audioStream.pipe(speaker);
+
+			console.clear();
+			await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+			console.log(
+				`  ${cor}[+]${reset} Ouvindo áudio de ${cor}${user.username}${reset}...`,
+			);
+			console.log(
+				`  ${cor}[+]${reset} Aperte ${cor}ENTER${reset} para parar de ouvir.`,
+			);
+
+			GRAVACOES_ATIVAS.set(user.id, { stream: audioStream });
+
+			audioStream.on("end", () => {
+				audioStream.unpipe(speaker);
+				GRAVACOES_ATIVAS.delete(user.id);
+			});
+		}
+
+		await esperarEnter();
+		if (connection) await connection.disconnect();
+		await menu(client);
+	};
+
+	const desconectarMembros = async () => {
+		console.clear();
+		console.log("Digite o ID da call que você deseja desconectar todos.");
+		const idCall = readlineSync.question("> ");
+
+		if (!(await confirmarAcao("Tem certeza que deseja desconectar todos?"))) {
+			console.clear();
+			return voltarMenu();
+		}
+
+		const canal = obterCanalVoz(idCall);
+
+		if (!canal) {
+			console.clear();
+			console.log(`${erro}[X]${reset} ID inválido.`);
+			return sleep(3.5).then(() => menu(client));
+		}
+
+		if (!canal.members.size) {
+			console.clear();
+			console.log(`${erro}[X]${reset} A call está vazia.`);
+			return sleep(3.5).then(() => menu(client));
+		}
+
+		for (const member of canal.members.values()) {
+			try {
+				await member.voice.setChannel(null);
+				console.log(
+					`${cor}[+]${reset} ${member.user.tag} desconectado da call ${canal.name}`,
+				);
+			} catch (err) {
+				if (err.message === "Missing Permissions") {
+					console.clear();
+					console.log(`${erro}[X]${reset} Você não tem permissão.`);
+					return sleep(3.5).then(() => menu(client));
+				}
+			}
+		}
+		await menu(client);
+	};
+
+	switch (escolherOpcao()) {
+		case "1":
+			return await desconectarMembros();
+		case "2":
+			return await moverMembros();
 		case "3":
-			await menu(client);
-			break;
+			return await gravarCall();
+		case "4":
+			return await farmarHora();
+		case "5":
+			return await ouvirCall();
+		case "6":
+			return await menu(client);
 		default:
 			console.clear();
-			console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
-			await sleep(1.5);
-			await menu(client);
-			break;
+			console.log(`${erro}[X]${reset} Opção inválida, tente novamente.`);
+			return voltarMenu();
 	}
 }
 
@@ -1683,6 +2130,143 @@ async function scraperIcons() {
 	}
 }
 
+async function clonarServidores() {
+	console.clear();
+	process.title = "147Clear | Clonar servidores";
+
+	const idOriginal = readlineSync.question("ID do servidor original.\n> ");
+	const guildOriginal = client.guilds.cache.get(idOriginal);
+
+	if (!guildOriginal) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}Servidor original não encontrado.`);
+		await sleep(3);
+		return await menu(client);
+	}
+
+	console.clear();
+	const idNovo = readlineSync.question("ID do servidor de destino.\n> ");
+	const guildNovo = client.guilds.cache.get(idNovo);
+
+	if (!guildNovo) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}Servidor de destino não encontrado.`);
+		await sleep(3);
+		return await menu(client);
+	}
+
+	console.clear();
+
+	try {
+		await guildNovo.setName(guildOriginal.name);
+		await guildNovo.setIcon(guildOriginal.iconURL() || null);
+
+		if (guildOriginal.premiumSubscriptionCount > 0) {
+			await guildNovo.setBanner(guildOriginal.bannerURL() || null);
+		}
+
+		const canaisParaExcluir = guildNovo.channels.cache;
+		const cargosParaExcluir = guildNovo.roles.cache.filter(
+			(r) => r.name !== "@everyone",
+		);
+
+		for (const canal of canaisParaExcluir.values()) {
+			await canal.delete().catch(() => {
+				console.log(
+					`${erro}[X] ${reset}Erro ao deletar um canal: ${canal.name}`,
+				);
+			});
+		}
+
+		for (const cargo of cargosParaExcluir.values()) {
+			await cargo.delete().catch(() => {
+				console.log(
+					`${erro}[X] ${reset}Erro ao deletar um cargo: ${cargo.name}`,
+				);
+			});
+		}
+
+		const cargosMap = new Map();
+		const cargosOriginais = guildOriginal.roles.cache
+			.filter((r) => r.name !== "@everyone")
+			.sort((a, b) => a.position - b.position);
+
+		for (const cargo of cargosOriginais.values()) {
+			const novoCargo = await guildNovo.roles.create({
+				name: cargo.name,
+				color: cargo.color,
+				hoist: cargo.hoist,
+				permissions: cargo.permissions,
+			});
+			cargosMap.set(cargo.id, novoCargo);
+		}
+
+		function clonarPermissoes(canalOriginal, cargosMap) {
+			const overwrites = [];
+
+			for (const overwrite of canalOriginal.permissionOverwrites.cache.values()) {
+				if (overwrite.type === "role" && cargosMap.has(overwrite.id)) {
+					overwrites.push({
+						id: cargosMap.get(overwrite.id).id,
+						allow: overwrite.allow.bitfield,
+						deny: overwrite.deny.bitfield,
+						type: "role",
+					});
+				}
+			}
+
+			return overwrites;
+		}
+
+		const categoriasMap = new Map();
+		const categorias = guildOriginal.channels.cache
+			.filter((c) => c.type === "GUILD_CATEGORY")
+			.sort((a, b) => a.position - b.position);
+
+		for (const categoria of categorias.values()) {
+			const novaCategoria = await guildNovo.channels.create(categoria.name, {
+				type: "GUILD_CATEGORY",
+				permissionOverwrites: clonarPermissoes(categoria, cargosMap),
+			});
+
+			categoriasMap.set(categoria.id, novaCategoria);
+		}
+
+		const canaisTexto = guildOriginal.channels.cache.filter(
+			(c) => c.type === "GUILD_TEXT",
+		);
+		const canaisVoz = guildOriginal.channels.cache.filter(
+			(c) => c.type === "GUILD_VOICE",
+		);
+		const clonarCanais = async (canais, tipo) => {
+			for (const canal of canais.values()) {
+				const categoriaPai = categoriasMap.get(canal.parentId ?? "")?.id;
+				await guildNovo.channels.create(canal.name, {
+					type: tipo,
+					parent: categoriaPai,
+					...(tipo === "GUILD_TEXT"
+						? { topic: canal.topic || undefined, nsfw: canal.nsfw }
+						: { bitrate: canal.bitrate, userLimit: canal.userLimit }),
+					permissionOverwrites: clonarPermissoes(canal, cargosMap),
+				});
+			}
+		};
+
+		await clonarCanais(canaisTexto, 0);
+		await clonarCanais(canaisVoz, 2);
+
+		await sleep(3);
+		await menu(client);
+	} catch (erroClone) {
+		console.clear();
+		console.log(
+			`${erro}[X] ${reset}Falha ao clonar o servidor: ${erroClone.message}`,
+		);
+		await sleep(5);
+		await menu(client);
+	}
+}
+
 function getMaxDescriptionLength(options) {
 	return Math.max(...options.map((option) => option.description.length));
 }
@@ -1744,18 +2328,19 @@ async function menu(client) {
 }
 
 async function checarUpdates() {
-	if (
-		(
-			await (
-				await fetch(
-					"https://api.github.com/repos/147enterprise/147clear/releases/latest",
-				)
-			).json()
-		).tag_name !== VERSAO_ATUAL
-	) {
-		return true;
+	try {
+		const response = await fetch(
+			"https://api.github.com/repos/147enterprise/147clear/releases/latest",
+		);
+		const json = await response.json();
+
+		if (json.tag_name !== VERSAO_ATUAL) {
+			return true;
+		}
+		return false;
+	} catch {
+		return false;
 	}
-	return false;
 }
 
 async function iniciarCliente() {
