@@ -1,4 +1,5 @@
 const fs = require("fs");
+const os = require("os");
 const readlineSync = require("readline-sync");
 const Discord = require("discord.js-selfbot-v13");
 const client = new Discord.Client({ checkUpdate: false });
