@@ -1478,6 +1478,12 @@ async function utilidadesCall() {
 			selfDeaf: true,
 			selfVideo: false,
 		});
+		
+		console.clear();
+	    await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+	    console.log(
+	      `  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
+	    );
 
 		connection.on("speaking", (user, speaking) => {
 			if (!user) return;
@@ -1755,6 +1761,12 @@ async function utilidadesCall() {
 			selfDeaf: true,
 			selfVideo: false,
 		});
+		
+		console.clear();
+	    await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+	    console.log(
+	      `  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
+	    );
 
 		connection.on("speaking", async (user, speaking) => {
 			if (!user) return;
@@ -2156,8 +2168,24 @@ async function clonarServidores() {
 	}
 
 	console.clear();
+	console.log(
+		`Deseja mesmo continuar? Isso irá apagar tudo do servidor de destino (${guildNovo.name}).\n`,
+	);
+	console.log(`
+  ${cor}[ 1 ]${reset} Tenho certeza
+  ${cor}[ 2 ]${reset} Desisti, voltar
+	`);
+	const opcao = readlineSync.question("\n> ");
+	if (opcao !== "1") return await menu(client);
 
+	console.clear();
 	try {
+		await guildOriginal.stickers.fetch().catch(() => {});
+		const stickers = Array.from(
+			guildOriginal.stickers.cache,
+			([name, value]) => ({ name, value }),
+		);
+
 		await guildNovo.setName(guildOriginal.name);
 		await guildNovo.setIcon(guildOriginal.iconURL() || null);
 
@@ -2165,24 +2193,33 @@ async function clonarServidores() {
 			await guildNovo.setBanner(guildOriginal.bannerURL() || null);
 		}
 
-		const canaisParaExcluir = guildNovo.channels.cache;
-		const cargosParaExcluir = guildNovo.roles.cache.filter(
-			(r) => r.name !== "@everyone",
-		);
+		for (const emoji of guildNovo.emojis.cache.values()) {
+			await emoji.delete().catch(() => {
+				console.log(`${erro}[X] ${reset}Erro ao deletar emoji: ${emoji.name}`);
+			});
+		}
 
-		for (const canal of canaisParaExcluir.values()) {
-			await canal.delete().catch(() => {
+		await guildNovo.stickers.fetch().catch(() => {});
+		for (const sticker of guildNovo.stickers.cache.values()) {
+			await sticker.delete().catch(() => {
 				console.log(
-					`${erro}[X] ${reset}Erro ao deletar um canal: ${canal.name}`,
+					`${erro}[X] ${reset}Erro ao deletar sticker: ${sticker.name}`,
 				);
 			});
 		}
 
+		for (const canal of guildNovo.channels.cache.values()) {
+			await canal.delete().catch(() => {
+				console.log(`${erro}[X] ${reset}Erro ao deletar canal: ${canal.name}`);
+			});
+		}
+
+		const cargosParaExcluir = guildNovo.roles.cache.filter(
+			(r) => r.name !== "@everyone",
+		);
 		for (const cargo of cargosParaExcluir.values()) {
 			await cargo.delete().catch(() => {
-				console.log(
-					`${erro}[X] ${reset}Erro ao deletar um cargo: ${cargo.name}`,
-				);
+				console.log(`${erro}[X] ${reset}Erro ao deletar cargo: ${cargo.name}`);
 			});
 		}
 
@@ -2201,7 +2238,7 @@ async function clonarServidores() {
 			cargosMap.set(cargo.id, novoCargo);
 		}
 
-		function clonarPermissoes(canalOriginal, cargosMap) {
+		const clonarPermissoes = (canalOriginal, cargosMap) => {
 			const overwrites = [];
 
 			for (const overwrite of canalOriginal.permissionOverwrites.cache.values()) {
@@ -2216,7 +2253,7 @@ async function clonarServidores() {
 			}
 
 			return overwrites;
-		}
+		};
 
 		const categoriasMap = new Map();
 		const categorias = guildOriginal.channels.cache
@@ -2238,6 +2275,7 @@ async function clonarServidores() {
 		const canaisVoz = guildOriginal.channels.cache.filter(
 			(c) => c.type === "GUILD_VOICE",
 		);
+
 		const clonarCanais = async (canais, tipo) => {
 			for (const canal of canais.values()) {
 				const categoriaPai = categoriasMap.get(canal.parentId ?? "")?.id;
@@ -2252,20 +2290,254 @@ async function clonarServidores() {
 			}
 		};
 
+		const pegarMime = (ext) => {
+			const map = {
+				apng: "image/apng",
+				jpg: "image/jpeg",
+				jpeg: "image/jpeg",
+				png: "image/png",
+				gif: "image/gif",
+			};
+			const normalized = ext.trim().toLowerCase().replace(".", "");
+			return map[normalized] || null;
+		};
+
 		await clonarCanais(canaisTexto, 0);
 		await clonarCanais(canaisVoz, 2);
 
+		for (const sticker of stickers) {
+			const response = await fetch(sticker.value.url);
+			const buffer = await response.arrayBuffer();
+			const ext = sticker.value.url.split("?")[0].split(".").at(-1);
+			const blob = new Blob([buffer], { type: pegarMime(ext) });
+
+			const form = new FormData();
+			form.append("name", sticker.value.name);
+			form.append("tags", sticker.value.tags[0]);
+			form.append("description", sticker.value.description || "");
+			form.append("file", blob, "sticker.png");
+
+			const res = await fetch(
+				`https://discord.com/api/v9/guilds/${guildNovo.id}/stickers`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: client.token,
+					},
+					body: form,
+				},
+			);
+
+			if (!res.ok) {
+				const text = await res.text();
+				console.log(
+					`${erro}[X]${reset} Erro ao criar sticker ${sticker.value.name}: ${text}`,
+				);
+			}
+		}
+
+		for (const emoji of guildOriginal.emojis.cache.values()) {
+			try {
+				await guildNovo.emojis.create(emoji.url, emoji.name);
+			} catch (e) {
+				console.log(
+					`${erro}[X] ${reset}Erro ao clonar emoji ${emoji.name}: ${e.message}`,
+				);
+			}
+		}
+
 		await sleep(3);
 		await menu(client);
-	} catch (erroClone) {
-		console.clear();
-		console.log(
-			`${erro}[X] ${reset}Falha ao clonar o servidor: ${erroClone.message}`,
-		);
-		await sleep(5);
-		await menu(client);
-	}
+	} catch {}
 }
+
+// async function clonarServidores() {
+// console.clear();
+// process.title = "147Clear | Clonar servidores";
+
+// const idOriginal = readlineSync.question("ID do servidor original.\n> ");
+// const guildOriginal = client.guilds.cache.get(idOriginal);
+
+// if (!guildOriginal) {
+// console.clear();
+// console.log(`${erro}[X] ${reset}Servidor original não encontrado.`);
+// await sleep(3);
+// return await menu(client);
+// }
+
+// console.clear();
+// const idNovo = readlineSync.question("ID do servidor de destino.\n> ");
+// const guildNovo = client.guilds.cache.get(idNovo);
+
+// if (!guildNovo) {
+// console.clear();
+// console.log(`${erro}[X] ${reset}Servidor de destino não encontrado.`);
+// await sleep(3);
+// return await menu(client);
+// }
+
+// console.clear();
+
+// try {
+// await guildOriginal.stickers.fetch().catch(() => {});
+// const stickers = Array.from(guildOriginal.stickers.cache, ([name, value]) => ({ name, value }));
+// console.log(stickers[0].value.url);
+
+// await guildNovo.setName(guildOriginal.name);
+// await guildNovo.setIcon(guildOriginal.iconURL() || null);
+
+// if (guildOriginal.premiumSubscriptionCount > 0) {
+// await guildNovo.setBanner(guildOriginal.bannerURL() || null);
+// }
+
+// const canaisParaExcluir = guildNovo.channels.cache;
+// const cargosParaExcluir = guildNovo.roles.cache.filter(
+// (r) => r.name !== "@everyone",
+// );
+
+// for (const canal of canaisParaExcluir.values()) {
+// await canal.delete().catch(() => {
+// console.log(
+// `${erro}[X] ${reset}Erro ao deletar um canal: ${canal.name}`,
+// );
+// });
+// }
+
+// for (const cargo of cargosParaExcluir.values()) {
+// await cargo.delete().catch(() => {
+// console.log(
+// `${erro}[X] ${reset}Erro ao deletar um cargo: ${cargo.name}`,
+// );
+// });
+// }
+
+// const cargosMap = new Map();
+// const cargosOriginais = guildOriginal.roles.cache
+// .filter((r) => r.name !== "@everyone")
+// .sort((a, b) => a.position - b.position);
+
+// for (const cargo of cargosOriginais.values()) {
+// const novoCargo = await guildNovo.roles.create({
+// name: cargo.name,
+// color: cargo.color,
+// hoist: cargo.hoist,
+// permissions: cargo.permissions,
+// });
+// cargosMap.set(cargo.id, novoCargo);
+// }
+
+// function clonarPermissoes(canalOriginal, cargosMap) {
+// const overwrites = [];
+
+// for (const overwrite of canalOriginal.permissionOverwrites.cache.values()) {
+// if (overwrite.type === "role" && cargosMap.has(overwrite.id)) {
+// overwrites.push({
+// id: cargosMap.get(overwrite.id).id,
+// allow: overwrite.allow.bitfield,
+// deny: overwrite.deny.bitfield,
+// type: "role",
+// });
+// }
+// }
+
+// return overwrites;
+// }
+
+// const categoriasMap = new Map();
+// const categorias = guildOriginal.channels.cache
+// .filter((c) => c.type === "GUILD_CATEGORY")
+// .sort((a, b) => a.position - b.position);
+
+// for (const categoria of categorias.values()) {
+// const novaCategoria = await guildNovo.channels.create(categoria.name, {
+// type: "GUILD_CATEGORY",
+// permissionOverwrites: clonarPermissoes(categoria, cargosMap),
+// });
+
+// categoriasMap.set(categoria.id, novaCategoria);
+// }
+
+// const canaisTexto = guildOriginal.channels.cache.filter(
+// (c) => c.type === "GUILD_TEXT",
+// );
+// const canaisVoz = guildOriginal.channels.cache.filter(
+// (c) => c.type === "GUILD_VOICE",
+// );
+// const clonarCanais = async (canais, tipo) => {
+// for (const canal of canais.values()) {
+// const categoriaPai = categoriasMap.get(canal.parentId ?? "")?.id;
+// await guildNovo.channels.create(canal.name, {
+// type: tipo,
+// parent: categoriaPai,
+// ...(tipo === "GUILD_TEXT"
+// ? { topic: canal.topic || undefined, nsfw: canal.nsfw }
+// : { bitrate: canal.bitrate, userLimit: canal.userLimit }),
+// permissionOverwrites: clonarPermissoes(canal, cargosMap),
+// });
+// }
+// };
+
+// const pegarMime = (ext) => {
+// const map = {
+// apng: 'image/apng',
+// jpg: 'image/jpeg',
+// jpeg: 'image/jpeg',
+// png: 'image/png',
+// gif: 'image/gif',
+// };
+
+// const normalized = ext.trim().toLowerCase().replace('.', '');
+// return map[normalized] || null;
+// };
+
+// await clonarCanais(canaisTexto, 0);
+// await clonarCanais(canaisVoz, 2);
+
+// for (const sticker of stickers) {
+// const response = await fetch(sticker.value.url);
+// const buffer = await response.arrayBuffer();
+// const ext = sticker.value.url.split('?')[0].split('.').at(-1);
+// const blob = new Blob([buffer], { type: pegarMime(ext) });
+
+// const form = new FormData();
+// form.append('name', sticker.value.name);
+// form.append('tags', sticker.value.tags[0]);
+// form.append('description', sticker.value.description || '');
+// form.append('file', blob, 'sticker.png');
+
+// const res = await fetch(`https://discord.com/api/v9/guilds/${guildNovo.id}/stickers`, {
+// method: 'POST',
+// headers: {
+// Authorization: client.token,
+// },
+// body: form
+// });
+
+// if (!res.ok) {
+// const text = await res.text();
+// console.log(`${erro}[X]${reset} Erro ao criar sticker ${sticker.value.name}: ${text}`);
+// }
+// }
+
+// for (const emoji of guildOriginal.emojis.cache.values()) {
+// try {
+// await guildNovo.emojis.create(emoji.url, emoji.name);
+// } catch (e) {
+// console.log(`${erro}[X] ${reset}Erro ao clonar emoji ${emoji.name}: ${e.message}`);
+// }
+// }
+
+// await sleep(3);
+// await menu(client);
+// } catch (erroClone) {
+// console.clear();
+// console.log(
+// `${erro}[X] ${reset}Falha ao clonar o servidor: ${erroClone.message}`,
+// );
+// await sleep(5);
+// await menu(client);
+// }
+// }
 
 function getMaxDescriptionLength(options) {
 	return Math.max(...options.map((option) => option.description.length));
