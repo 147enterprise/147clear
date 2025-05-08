@@ -7,7 +7,7 @@ const Speaker = require("speaker");
 const path = require("path");
 
 const clientId = "1257500388408692800";
-const VERSAO_ATUAL = "1.1.4";
+const VERSAO_ATUAL = "1.1.5";
 const GRAVACOES_ATIVAS = new Map();
 
 const config = (() => {
