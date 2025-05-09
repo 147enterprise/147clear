@@ -1,7 +1,7 @@
 {
-    "tokens": [],
-    "cor_painel": "#A020F0",
-    "delay": "1",
-    "esperar_fetch": false,
-    "desativar_rpc": false
+	"tokens": [],
+	"cor_painel": "#A020F0",
+	"delay": "1",
+	"esperar_fetch": false,
+	"desativar_rpc": false
 }

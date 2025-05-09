@@ -36,8 +36,6 @@
 			"node_modules/node-opus/**",
 			"node_modules/opusscript/**"
 		],
-		"targets": [
-			"node22-win-x64"
-		]
+		"targets": ["node22-win-x64"]
 	}
 }

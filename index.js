@@ -767,7 +767,7 @@ async function kosameFarm() {
 	console.log("ID do chat para envio dos comandos.");
 	const chat_id = readlineSync.question("> ");
 	const canal = client.channels.cache.get(chat_id);
-	
+
 	if (!canal) {
 		console.clear();
 		console.log(`${erro}[X] ${reset}ID inválido, tente novamente.`);
@@ -777,30 +777,36 @@ async function kosameFarm() {
 
 	if (!canal.permissionsFor(canal.guild.members.me).has("SEND_MESSAGES")) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Você não tem permissão para enviar mensagens neste canal.`);
+		console.log(
+			`${erro}[X] ${reset}Você não tem permissão para enviar mensagens neste canal.`,
+		);
 		await sleep(4.5);
 		return menu(client);
 	}
 
 	console.clear();
 	await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-	console.log(`  ${cor}[+] ${reset}Farmando no canal ${cor}${canal.name}${reset} no servidor ${cor}${canal.guild.name}${reset}.`)
-	console.log(`  ${cor}[+] ${reset}Pressione ${cor}ENTER ${reset}para parar de farmar.\n`);
+	console.log(
+		`  ${cor}[+] ${reset}Farmando no canal ${cor}${canal.name}${reset} no servidor ${cor}${canal.guild.name}${reset}.`,
+	);
+	console.log(
+		`  ${cor}[+] ${reset}Pressione ${cor}ENTER ${reset}para parar de farmar.\n`,
+	);
 
 	const delays = {
-		"gf": 30 * 60 * 1000,
-		"crime": 10 * 60 * 1000,
-		"daily": 24 * 60 * 60 * 1000,
-		"work": 60 * 60 * 1000,
-		"semanal": 7 * 24 * 60 * 60 * 1000,
+		gf: 30 * 60 * 1000,
+		crime: 10 * 60 * 1000,
+		daily: 24 * 60 * 60 * 1000,
+		work: 60 * 60 * 1000,
+		semanal: 7 * 24 * 60 * 60 * 1000,
 	};
 
 	const comandos = {
-		"gf": { comando: "k!gf", ultimoEnvio: 0 },
-		"crime": { comando: "k!crime", ultimoEnvio: 0 },
-		"daily": { comando: "k!daily", ultimoEnvio: 0 },
-		"work": { comando: "k!work", ultimoEnvio: 0 },
-		"semanal": { comando: "k!semanal", ultimoEnvio: 0 },
+		gf: { comando: "k!gf", ultimoEnvio: 0 },
+		crime: { comando: "k!crime", ultimoEnvio: 0 },
+		daily: { comando: "k!daily", ultimoEnvio: 0 },
+		work: { comando: "k!work", ultimoEnvio: 0 },
+		semanal: { comando: "k!semanal", ultimoEnvio: 0 },
 	};
 
 	const messageCreateListener = async (msg) => {
@@ -810,18 +816,22 @@ async function kosameFarm() {
 			msg.mentions.has(client.user) &&
 			msg.content.includes("Você pode reduzir o tempo de espera")
 		) {
-			const msg_kk = await msg.channel.messages.fetch(msg.reference.messageId, { force: true }).catch(() => {});
+			const msg_kk = await msg.channel.messages
+				.fetch(msg.reference.messageId, { force: true })
+				.catch(() => {});
 			if (!msg_kk) return;
 
-			const comandoReenviado = Object.keys(comandos).find(chave =>
-				comandos[chave].comando === msg_kk.content
+			const comandoReenviado = Object.keys(comandos).find(
+				(chave) => comandos[chave].comando === msg_kk.content,
 			);
 
 			if (
 				comandoReenviado &&
 				Date.now() - comandos[comandoReenviado].ultimoEnvio < 15 * 1000
 			) {
-				console.log(`  ${erro}[!] ${reset}Ignorando retry de ${msg_kk.content}, enviado há pouco tempo.`);
+				console.log(
+					`  ${erro}[!] ${reset}Ignorando retry de ${msg_kk.content}, enviado há pouco tempo.`,
+				);
 				return;
 			}
 
@@ -830,20 +840,22 @@ async function kosameFarm() {
 
 			if (comandoReenviado) {
 				comandos[comandoReenviado].ultimoEnvio = Date.now();
-				console.log(`  ${cor}[+]${reset} Retry pós delay enviado: ${msg_kk.content}`);
+				console.log(
+					`  ${cor}[+]${reset} Retry pós delay enviado: ${msg_kk.content}`,
+				);
 			}
 		}
 	};
 
 	client.on("messageCreate", messageCreateListener);
-	
+
 	let interromper = false;
 	const escutandoEnter = esperarEnter().then(() => {
 		interromper = true;
 	});
-	
+
 	const chavesComandos = Object.keys(comandos);
-	
+
 	while (!interromper) {
 		const agora = Date.now();
 
@@ -861,7 +873,9 @@ async function kosameFarm() {
 					cmd.ultimoEnvio = Date.now();
 					console.log(`  ${cor}[+] ${reset}Enviado: ${cmd.comando}`);
 				} catch (e) {
-					console.log(`  ${erro}[!] ${reset}Falha ao enviar ${cmd.comando}: ${e.message}`);
+					console.log(
+						`  ${erro}[!] ${reset}Falha ao enviar ${cmd.comando}: ${e.message}`,
+					);
 				}
 			}
 		}
@@ -1580,12 +1594,12 @@ async function utilidadesCall() {
 			selfDeaf: true,
 			selfVideo: false,
 		});
-		
+
 		console.clear();
-	    await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-	    console.log(
-	      `  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
-	    );
+		await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+		console.log(
+			`  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
+		);
 
 		connection.on("speaking", (user, speaking) => {
 			if (!user) return;
@@ -1863,12 +1877,12 @@ async function utilidadesCall() {
 			selfDeaf: true,
 			selfVideo: false,
 		});
-		
+
 		console.clear();
-	    await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-	    console.log(
-	      `  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
-	    );
+		await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+		console.log(
+			`  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
+		);
 
 		connection.on("speaking", async (user, speaking) => {
 			if (!user) return;
@@ -2326,9 +2340,9 @@ async function clonarServidores() {
 		}
 
 		const cargosMap = new Map();
-        const cargosOriginais = guildOriginal.roles.cache
-          .filter((r) => r.name !== "@everyone")
-          .sort((a, b) => b.position - a.position);
+		const cargosOriginais = guildOriginal.roles.cache
+			.filter((r) => r.name !== "@everyone")
+			.sort((a, b) => b.position - a.position);
 
 		for (const cargo of cargosOriginais.values()) {
 			const novoCargo = await guildNovo.roles.create({
