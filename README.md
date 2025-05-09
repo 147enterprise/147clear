@@ -135,10 +135,10 @@ Para mais informações ou suporte, nos contate através do email: [147company@g
 
 - [x] Adição da função de Abrir DMs(Package/Amigos)
 - [x] Adição do Trigger Clear para apagar mensagens com um comando.
+- [x] Adição da função de clonar servidores.
+- [x] Adição do KosameFarm.
 - [ ] Adição de uma interface gráfica.
-- [ ] Adição do KosameFarm.
 - [ ] Adição de atualizações automáticas.
-- [ ] Adição da função de clonar servidores.
 
 ---
 

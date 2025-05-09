@@ -7,7 +7,7 @@ const Speaker = require("speaker");
 const path = require("path");
 
 const clientId = "1257500388408692800";
-const VERSAO_ATUAL = "1.1.4";
+const VERSAO_ATUAL = "1.1.6";
 const GRAVACOES_ATIVAS = new Map();
 
 const config = (() => {
@@ -181,11 +181,6 @@ function criarConfig() {
 		cor_painel: "#A020F0",
 		delay: "1",
 		esperar_fetch: false,
-		kosame: {
-			ativado: false,
-			canal: "",
-			tokens: [],
-		},
 	};
 
 	if (!fs.existsSync("config.json")) {
@@ -767,10 +762,117 @@ Estado atual do Rich Presence:`,
 
 async function kosameFarm() {
 	console.clear();
+	process.title = "147Clear | Kosame Farm";
 
-	console.log("Implementar depois.");
-	await sleep(3.5);
-	menu(client);
+	console.log("ID do chat para envio dos comandos.");
+	const chat_id = readlineSync.question("> ");
+	const canal = client.channels.cache.get(chat_id);
+	
+	if (!canal) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}ID inválido, tente novamente.`);
+		await sleep(1.5);
+		return menu(client);
+	}
+
+	if (!canal.permissionsFor(canal.guild.members.me).has("SEND_MESSAGES")) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}Você não tem permissão para enviar mensagens neste canal.`);
+		await sleep(4.5);
+		return menu(client);
+	}
+
+	console.clear();
+	await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+	console.log(`  ${cor}[+] ${reset}Farmando no canal ${cor}${canal.name}${reset} no servidor ${cor}${canal.guild.name}${reset}.`)
+	console.log(`  ${cor}[+] ${reset}Pressione ${cor}ENTER ${reset}para parar de farmar.\n`);
+
+	const delays = {
+		"gf": 30 * 60 * 1000,
+		"crime": 10 * 60 * 1000,
+		"daily": 24 * 60 * 60 * 1000,
+		"work": 60 * 60 * 1000,
+		"semanal": 7 * 24 * 60 * 60 * 1000,
+	};
+
+	const comandos = {
+		"gf": { comando: "k!gf", ultimoEnvio: 0 },
+		"crime": { comando: "k!crime", ultimoEnvio: 0 },
+		"daily": { comando: "k!daily", ultimoEnvio: 0 },
+		"work": { comando: "k!work", ultimoEnvio: 0 },
+		"semanal": { comando: "k!semanal", ultimoEnvio: 0 },
+	};
+
+	const messageCreateListener = async (msg) => {
+		if (
+			msg.reference &&
+			msg.author.id === "762320527637217312" &&
+			msg.mentions.has(client.user) &&
+			msg.content.includes("Você pode reduzir o tempo de espera")
+		) {
+			const msg_kk = await msg.channel.messages.fetch(msg.reference.messageId, { force: true }).catch(() => {});
+			if (!msg_kk) return;
+
+			const comandoReenviado = Object.keys(comandos).find(chave =>
+				comandos[chave].comando === msg_kk.content
+			);
+
+			if (
+				comandoReenviado &&
+				Date.now() - comandos[comandoReenviado].ultimoEnvio < 15 * 1000
+			) {
+				console.log(`  ${erro}[!] ${reset}Ignorando retry de ${msg_kk.content}, enviado há pouco tempo.`);
+				return;
+			}
+
+			await sleep(9);
+			await msg.channel.send(msg_kk.content).catch(() => {});
+
+			if (comandoReenviado) {
+				comandos[comandoReenviado].ultimoEnvio = Date.now();
+				console.log(`  ${cor}[+]${reset} Retry pós delay enviado: ${msg_kk.content}`);
+			}
+		}
+	};
+
+	client.on("messageCreate", messageCreateListener);
+	
+	let interromper = false;
+	const escutandoEnter = esperarEnter().then(() => {
+		interromper = true;
+	});
+	
+	const chavesComandos = Object.keys(comandos);
+	
+	while (!interromper) {
+		const agora = Date.now();
+
+		for (let i = 0; i < chavesComandos.length; i++) {
+			if (interromper) break;
+
+			const chave = chavesComandos[i];
+			const cmd = comandos[chave];
+			const tempoPassado = agora - cmd.ultimoEnvio;
+
+			if (tempoPassado >= delays[chave]) {
+				try {
+					await canal.send(cmd.comando);
+					await sleep(9);
+					cmd.ultimoEnvio = Date.now();
+					console.log(`  ${cor}[+] ${reset}Enviado: ${cmd.comando}`);
+				} catch (e) {
+					console.log(`  ${erro}[!] ${reset}Falha ao enviar ${cmd.comando}: ${e.message}`);
+				}
+			}
+		}
+
+		for (let i = 0; i < 10 && !interromper; i++) {
+			await sleep(0.1);
+		}
+	}
+
+	client.off("messageCreate", messageCreateListener);
+	return menu(client);
 }
 
 async function processarCanais(zipEntries, whitelist) {
@@ -2224,9 +2326,9 @@ async function clonarServidores() {
 		}
 
 		const cargosMap = new Map();
-		const cargosOriginais = guildOriginal.roles.cache
-			.filter((r) => r.name !== "@everyone")
-			.sort((a, b) => a.position - b.position);
+        const cargosOriginais = guildOriginal.roles.cache
+          .filter((r) => r.name !== "@everyone")
+          .sort((a, b) => b.position - a.position);
 
 		for (const cargo of cargosOriginais.values()) {
 			const novoCargo = await guildNovo.roles.create({
@@ -2350,194 +2452,6 @@ async function clonarServidores() {
 		await menu(client);
 	} catch {}
 }
-
-// async function clonarServidores() {
-// console.clear();
-// process.title = "147Clear | Clonar servidores";
-
-// const idOriginal = readlineSync.question("ID do servidor original.\n> ");
-// const guildOriginal = client.guilds.cache.get(idOriginal);
-
-// if (!guildOriginal) {
-// console.clear();
-// console.log(`${erro}[X] ${reset}Servidor original não encontrado.`);
-// await sleep(3);
-// return await menu(client);
-// }
-
-// console.clear();
-// const idNovo = readlineSync.question("ID do servidor de destino.\n> ");
-// const guildNovo = client.guilds.cache.get(idNovo);
-
-// if (!guildNovo) {
-// console.clear();
-// console.log(`${erro}[X] ${reset}Servidor de destino não encontrado.`);
-// await sleep(3);
-// return await menu(client);
-// }
-
-// console.clear();
-
-// try {
-// await guildOriginal.stickers.fetch().catch(() => {});
-// const stickers = Array.from(guildOriginal.stickers.cache, ([name, value]) => ({ name, value }));
-// console.log(stickers[0].value.url);
-
-// await guildNovo.setName(guildOriginal.name);
-// await guildNovo.setIcon(guildOriginal.iconURL() || null);
-
-// if (guildOriginal.premiumSubscriptionCount > 0) {
-// await guildNovo.setBanner(guildOriginal.bannerURL() || null);
-// }
-
-// const canaisParaExcluir = guildNovo.channels.cache;
-// const cargosParaExcluir = guildNovo.roles.cache.filter(
-// (r) => r.name !== "@everyone",
-// );
-
-// for (const canal of canaisParaExcluir.values()) {
-// await canal.delete().catch(() => {
-// console.log(
-// `${erro}[X] ${reset}Erro ao deletar um canal: ${canal.name}`,
-// );
-// });
-// }
-
-// for (const cargo of cargosParaExcluir.values()) {
-// await cargo.delete().catch(() => {
-// console.log(
-// `${erro}[X] ${reset}Erro ao deletar um cargo: ${cargo.name}`,
-// );
-// });
-// }
-
-// const cargosMap = new Map();
-// const cargosOriginais = guildOriginal.roles.cache
-// .filter((r) => r.name !== "@everyone")
-// .sort((a, b) => a.position - b.position);
-
-// for (const cargo of cargosOriginais.values()) {
-// const novoCargo = await guildNovo.roles.create({
-// name: cargo.name,
-// color: cargo.color,
-// hoist: cargo.hoist,
-// permissions: cargo.permissions,
-// });
-// cargosMap.set(cargo.id, novoCargo);
-// }
-
-// function clonarPermissoes(canalOriginal, cargosMap) {
-// const overwrites = [];
-
-// for (const overwrite of canalOriginal.permissionOverwrites.cache.values()) {
-// if (overwrite.type === "role" && cargosMap.has(overwrite.id)) {
-// overwrites.push({
-// id: cargosMap.get(overwrite.id).id,
-// allow: overwrite.allow.bitfield,
-// deny: overwrite.deny.bitfield,
-// type: "role",
-// });
-// }
-// }
-
-// return overwrites;
-// }
-
-// const categoriasMap = new Map();
-// const categorias = guildOriginal.channels.cache
-// .filter((c) => c.type === "GUILD_CATEGORY")
-// .sort((a, b) => a.position - b.position);
-
-// for (const categoria of categorias.values()) {
-// const novaCategoria = await guildNovo.channels.create(categoria.name, {
-// type: "GUILD_CATEGORY",
-// permissionOverwrites: clonarPermissoes(categoria, cargosMap),
-// });
-
-// categoriasMap.set(categoria.id, novaCategoria);
-// }
-
-// const canaisTexto = guildOriginal.channels.cache.filter(
-// (c) => c.type === "GUILD_TEXT",
-// );
-// const canaisVoz = guildOriginal.channels.cache.filter(
-// (c) => c.type === "GUILD_VOICE",
-// );
-// const clonarCanais = async (canais, tipo) => {
-// for (const canal of canais.values()) {
-// const categoriaPai = categoriasMap.get(canal.parentId ?? "")?.id;
-// await guildNovo.channels.create(canal.name, {
-// type: tipo,
-// parent: categoriaPai,
-// ...(tipo === "GUILD_TEXT"
-// ? { topic: canal.topic || undefined, nsfw: canal.nsfw }
-// : { bitrate: canal.bitrate, userLimit: canal.userLimit }),
-// permissionOverwrites: clonarPermissoes(canal, cargosMap),
-// });
-// }
-// };
-
-// const pegarMime = (ext) => {
-// const map = {
-// apng: 'image/apng',
-// jpg: 'image/jpeg',
-// jpeg: 'image/jpeg',
-// png: 'image/png',
-// gif: 'image/gif',
-// };
-
-// const normalized = ext.trim().toLowerCase().replace('.', '');
-// return map[normalized] || null;
-// };
-
-// await clonarCanais(canaisTexto, 0);
-// await clonarCanais(canaisVoz, 2);
-
-// for (const sticker of stickers) {
-// const response = await fetch(sticker.value.url);
-// const buffer = await response.arrayBuffer();
-// const ext = sticker.value.url.split('?')[0].split('.').at(-1);
-// const blob = new Blob([buffer], { type: pegarMime(ext) });
-
-// const form = new FormData();
-// form.append('name', sticker.value.name);
-// form.append('tags', sticker.value.tags[0]);
-// form.append('description', sticker.value.description || '');
-// form.append('file', blob, 'sticker.png');
-
-// const res = await fetch(`https://discord.com/api/v9/guilds/${guildNovo.id}/stickers`, {
-// method: 'POST',
-// headers: {
-// Authorization: client.token,
-// },
-// body: form
-// });
-
-// if (!res.ok) {
-// const text = await res.text();
-// console.log(`${erro}[X]${reset} Erro ao criar sticker ${sticker.value.name}: ${text}`);
-// }
-// }
-
-// for (const emoji of guildOriginal.emojis.cache.values()) {
-// try {
-// await guildNovo.emojis.create(emoji.url, emoji.name);
-// } catch (e) {
-// console.log(`${erro}[X] ${reset}Erro ao clonar emoji ${emoji.name}: ${e.message}`);
-// }
-// }
-
-// await sleep(3);
-// await menu(client);
-// } catch (erroClone) {
-// console.clear();
-// console.log(
-// `${erro}[X] ${reset}Falha ao clonar o servidor: ${erroClone.message}`,
-// );
-// await sleep(5);
-// await menu(client);
-// }
-// }
 
 function getMaxDescriptionLength(options) {
 	return Math.max(...options.map((option) => option.description.length));
