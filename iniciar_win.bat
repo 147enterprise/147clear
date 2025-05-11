@@ -1,9 +1,8 @@
 @echo off
 
-if exist "node_modules" (
-    node .
-) else (
-    npm i
-    echo Dependências instaladas. Iniciando...
-    node .
+if not exist "node_modules\" (
+    npm install & start cmd /k "node %cd%\index.js" & exit
 )
+
+start cmd /k "node %cd%\index.js"
+exit
