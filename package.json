@@ -10,15 +10,15 @@
 	"license": "ISC",
 	"description": "",
 	"dependencies": {
-		"@discordjs/opus": "^0.10.0",
-		"@suldashi/lame": "^1.2.5",
+		"node-opus": "github:qqzero0/node-opus",
+	        "speaker": "github:qqzero0/speaker",
+	        "@suldashi/lame": "github:qqzero0/lame",
+	        "@discordjs/opus": "github:qqzero0/opus",
+		"opusscript": "^0.0.8",
 		"adm-zip": "^0.5.12",
 		"discord-rpc": "^4.0.1",
 		"discord.js-selfbot-v13": "^3.1.4",
-		"node-opus": "^0.3.3",
-		"opusscript": "^0.0.8",
-		"readline-sync": "^1.4.10",
-		"speaker": "^0.5.5"
+		"readline-sync": "^1.4.10"
 	},
 	"overrides": {
 		"whatwg-url": "^14.0.0"
