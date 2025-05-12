@@ -17,7 +17,7 @@
 
 1. **Clone o repositório:**
     ```sh
-    git clone https://github.com/147enterprise/147clear.git
+    git clone --branch termux https://github.com/147enterprise/147clear.git
     cd 147clear
     ```
 
@@ -35,36 +35,6 @@
 
 2. **Siga as instruções no terminal para navegar pelos menus e executar as ações desejadas.**
 
-## Uso (Termux)
-
-1. **Instale o Git e o Node.js (caso ainda não tenha):**
-    ```sh
-    pkg install git
-    pkg install nodejs
-    ```
-
-2. **Clone o repositório:**
-    ```sh
-    git clone https://github.com/147enterprise/147clear.git
-    ```
-
-3. **Adentre a pasta do repositório:**
-    ```sh
-    cd 147clear
-    ```
-
-4. **Instale as dependências:**
-    ```sh
-    npm install
-    ```
-
-5. **Inicie o script:**
-    ```sh
-    node index.js
-    ```
-
-6. **Siga as instruções no terminal para navegar pelos menus e executar as ações desejadas.**
-
 ## Como desativar o Rich Presence do Perfil?
 
 1. Abra o Clear.
@@ -73,27 +43,6 @@
 
 3. Selecione a opção Ativar/Desativar o RPC.
 
-## Transformar em Executável
-
-Você pode transformar este script em um executável usando o `pkg`.
-
-1. **Abra o CMD na pasta do projeto**
-
-2. **Instale as dependências**
-    ```sh
-    npm install && npm install -g @yao-pkg/pkg
-    ```
-
-3. **Compile o script:**
-    ```sh
-    pkg .
-    ```
-
-4. **Execute o executável:**
-    ```sh
-    ./147clear.exe
-    ```
-
 ## Abrir um Commit
 
 Para contribuir com o projeto, siga estes passos:
@@ -101,7 +50,7 @@ Para contribuir com o projeto, siga estes passos:
 1. **Crie um fork do repositório.**
 2. **Clone seu fork:**
     ```sh
-    git clone https://github.com/147enterprise/147clear.git
+    git clone --branch termux https://github.com/147enterprise/147clear.git
     cd 147clear
     ```
 
