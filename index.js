@@ -2,8 +2,6 @@ const fs = require("fs");
 const readlineSync = require("readline-sync");
 const Discord = require("discord.js-selfbot-v13");
 const client = new Discord.Client({ checkUpdate: false });
-const lame = require("@suldashi/lame");
-const Speaker = require("speaker");
 const path = require("path");
 
 const clientId = "1257500388408692800";
@@ -1437,11 +1435,9 @@ async function utilidadesCall() {
 
     ${cor}[ 1 ]${reset} Desconectar todos da call
     ${cor}[ 2 ]${reset} Mover todos da call
-    ${cor}[ 3 ]${reset} Gravar áudio da call
-    ${cor}[ 4 ]${reset} Farmar hora em call
-    ${cor}[ 5 ]${reset} Ouvir call com fone mutado
+    ${cor}[ 3 ]${reset} Farmar hora em call
 	
-    ${cor}[ 6 ]${reset} Voltar
+    ${cor}[ 4 ]${reset} Voltar
 		`);
 		return readlineSync.question("> ");
 	};
@@ -1518,169 +1514,6 @@ async function utilidadesCall() {
 				}
 			}
 		}
-		await menu(client);
-	};
-
-	const gravarCall = async () => {
-		console.clear();
-		console.log(`
-    Escolha uma opção.
-
-    ${cor}[ 1 ]${reset} Gravar áudio de pessoas específicas
-    ${cor}[ 2 ]${reset} Gravar áudio de todos
-	
-    ${cor}[ 3 ]${reset} Voltar
-		`);
-		const escolha = readlineSync.question("> ");
-		if (escolha === "3") return await menu(client);
-
-		if (!["1", "2"].includes(escolha)) {
-			console.clear();
-			console.log(`${erro}[X]${reset} Opção inválida.`);
-			return sleep(3.5).then(() => menu(client));
-		}
-
-		console.clear();
-		console.log("Digite o ID da call que você deseja gravar o áudio.");
-		const idCall = readlineSync.question("> ");
-		const canal = client.channels.cache.get(idCall);
-
-		if (!canal || canal.type !== "GUILD_VOICE") {
-			console.clear();
-			console.log(`${erro}[X]${reset} ID inválido.`);
-			return sleep(3.5).then(() => menu(client));
-		}
-
-		if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
-			console.clear();
-			console.log(
-				`${erro}[X] ${reset}Você não tem permissão para entrar neste canal.`,
-			);
-			await sleep(4.5);
-			await menu(client);
-		}
-
-		if (
-			canal.members.size >= canal.userLimit &&
-			!canal.permissionsFor(canal.guild.members.me).has("MOVE_MEMBERS")
-		) {
-			console.clear();
-			console.log(`${erro}[X] ${reset}A call está lotada.`);
-			await sleep(4.5);
-			await menu(client);
-		}
-
-		let idsPermitidos = [];
-
-		if (escolha === "1") {
-			console.clear();
-			console.log("Digite os IDs dos usuários que deseja gravar (id, id).");
-			const idsStr = await readlineSync.question("> ");
-			idsPermitidos = idsStr.split(",").map((id) => id.trim());
-		}
-
-		console.clear();
-		console.log(`
-    Deseja escutar o áudio da call enquanto grava?
-
-    ${cor}[ 1 ]${reset} Sim
-    ${cor}[ 2 ]${reset} Não
-	    `);
-		const escutarAoVivo = readlineSync.question("> ");
-		const deveOuvir = escutarAoVivo === "1";
-
-		const connection = await client.voice.joinChannel(canal, {
-			selfMute: true,
-			selfDeaf: true,
-			selfVideo: false,
-		});
-
-		console.clear();
-		await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-		console.log(
-			`  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
-		);
-
-		connection.on("speaking", (user, speaking) => {
-			if (!user) return;
-			const userId = user.id;
-
-			if (speaking.bitfield) {
-				if (!GRAVACOES_ATIVAS.has(userId)) {
-					if (escolha === "2" || idsPermitidos.includes(userId)) {
-						comecarGravacao(connection, user, deveOuvir);
-					}
-				}
-			} else {
-				const active = GRAVACOES_ATIVAS.get(userId);
-				if (active?.stream) {
-					active.stream.destroy();
-					GRAVACOES_ATIVAS.delete(userId);
-				}
-			}
-		});
-
-		async function comecarGravacao(connection, user) {
-			const timestamp = Date.now();
-			const mp3FileName = `${user.username}-${timestamp}.mp3`;
-			const outputPath = path.join(
-				process.pkg ? process.cwd() : __dirname,
-				"gravacoes_call",
-			);
-
-			if (!fs.existsSync(outputPath)) {
-				fs.mkdirSync(outputPath);
-			}
-
-			const mp3Path = path.join(outputPath, mp3FileName);
-			const fileStream = fs.createWriteStream(mp3Path);
-
-			const audioStream = connection.receiver.createStream(user, {
-				mode: "pcm",
-				end: "manual",
-			});
-
-			const encoder = new lame.Encoder({
-				channels: 2,
-				bitDepth: 16,
-				sampleRate: 48000,
-				bitRate: 128,
-				outSampleRate: 16000,
-				mode: lame.MONO,
-			});
-
-			let speaker;
-			if (deveOuvir) {
-				speaker = new Speaker({
-					channels: 2,
-					bitDepth: 16,
-					sampleRate: 48000,
-				});
-				audioStream.pipe(speaker);
-			}
-			audioStream.pipe(encoder).pipe(fileStream);
-
-			console.clear();
-			await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-			console.log(
-				`  ${cor}[+]${reset} Gravando áudio de ${cor}${user.username}${reset}...`,
-			);
-			console.log(
-				`  ${cor}[+]${reset} Salvando na pasta ${cor}gravacoes_call${reset}.\n`,
-			);
-			console.log(`  Aperte ${cor}ENTER${reset} para parar de gravar.`);
-
-			GRAVACOES_ATIVAS.set(user.id, { stream: audioStream });
-			audioStream.on("end", () => {
-				audioStream.unpipe(encoder);
-				audioStream.unpipe(speaker);
-				encoder.end();
-				GRAVACOES_ATIVAS.delete(user.id);
-			});
-		}
-
-		await esperarEnter();
-		if (connection) await connection.disconnect();
 		await menu(client);
 	};
 
@@ -1817,127 +1650,6 @@ async function utilidadesCall() {
 		await menu(client);
 	};
 
-	const ouvirCall = async () => {
-		console.clear();
-		console.log(`
-    Escolha uma opção.
-    
-    ${cor}[ 1 ]${reset} Ouvir áudio de pessoas específicas
-    ${cor}[ 2 ]${reset} Ouvir áudio de todos
-    
-    ${cor}[ 3 ]${reset} Voltar
-    	`);
-
-		const escolha = readlineSync.question("> ").trim();
-		if (escolha === "3") return await menu(client);
-
-		let idsPermitidos = [];
-
-		if (escolha === "1") {
-			console.clear();
-			console.log("Digite os IDs dos usuários que deseja ouvir (id, id).");
-			const idsStr = readlineSync.question("> ");
-			idsPermitidos = idsStr.split(",").map((id) => id.trim());
-		}
-
-		console.clear();
-		console.log("Digite o ID da call que você deseja ouvir mutado.");
-		const idCall = readlineSync.question("> ");
-		const canal = client.channels.cache.get(idCall);
-
-		if (!canal || canal.type !== "GUILD_VOICE") {
-			console.clear();
-			console.log(`${erro}[X]${reset} ID inválido.`);
-			return sleep(3.5).then(() => menu(client));
-		}
-
-		if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
-			console.clear();
-			console.log(
-				`${erro}[X] ${reset}Você não tem permissão para entrar neste canal.`,
-			);
-			await sleep(4.5);
-			return await menu(client);
-		}
-
-		if (
-			canal.members.size >= canal.userLimit &&
-			!canal.permissionsFor(canal.guild.members.me).has("MOVE_MEMBERS")
-		) {
-			console.clear();
-			console.log(`${erro}[X] ${reset}A call está lotada.`);
-			await sleep(4.5);
-			return await menu(client);
-		}
-
-		const GRAVACOES_ATIVAS = new Map();
-
-		const connection = await client.voice.joinChannel(canal, {
-			selfMute: true,
-			selfDeaf: true,
-			selfVideo: false,
-		});
-
-		console.clear();
-		await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-		console.log(
-			`  ${cor}[+]${reset} Aguardando algum usuário começar a falar...`,
-		);
-
-		connection.on("speaking", async (user, speaking) => {
-			if (!user) return;
-
-			if (escolha === "1" && !idsPermitidos.includes(user.id)) return;
-
-			if (speaking.bitfield) {
-				if (!GRAVACOES_ATIVAS.has(user.id)) {
-					await comecarGravacao(connection, user);
-				}
-			} else {
-				const active = GRAVACOES_ATIVAS.get(user.id);
-				if (active?.stream) {
-					active.stream.destroy();
-					GRAVACOES_ATIVAS.delete(user.id);
-				}
-			}
-		});
-
-		async function comecarGravacao(connection, user) {
-			const audioStream = connection.receiver.createStream(user, {
-				mode: "pcm",
-				end: "manual",
-			});
-
-			const speaker = new Speaker({
-				channels: 2,
-				bitDepth: 16,
-				sampleRate: 48000,
-			});
-
-			audioStream.pipe(speaker);
-
-			console.clear();
-			await titulo(client?.user?.username || "a", client?.user?.id || "ww");
-			console.log(
-				`  ${cor}[+]${reset} Ouvindo áudio de ${cor}${user.username}${reset}...`,
-			);
-			console.log(
-				`  ${cor}[+]${reset} Aperte ${cor}ENTER${reset} para parar de ouvir.`,
-			);
-
-			GRAVACOES_ATIVAS.set(user.id, { stream: audioStream });
-
-			audioStream.on("end", () => {
-				audioStream.unpipe(speaker);
-				GRAVACOES_ATIVAS.delete(user.id);
-			});
-		}
-
-		await esperarEnter();
-		if (connection) await connection.disconnect();
-		await menu(client);
-	};
-
 	const desconectarMembros = async () => {
 		console.clear();
 		console.log("Digite o ID da call que você deseja desconectar todos.");
@@ -1985,12 +1697,8 @@ async function utilidadesCall() {
 		case "2":
 			return await moverMembros();
 		case "3":
-			return await gravarCall();
-		case "4":
 			return await farmarHora();
-		case "5":
-			return await ouvirCall();
-		case "6":
+		case "4":
 			return await menu(client);
 		default:
 			console.clear();
