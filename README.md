@@ -37,33 +37,7 @@
 
 ## Uso (Termux)
 
-1. **Instale o Git e o Node.js (caso ainda não tenha):**
-    ```sh
-    pkg install git
-    pkg install nodejs
-    ```
-
-2. **Clone o repositório:**
-    ```sh
-    git clone https://github.com/147enterprise/147clear.git
-    ```
-
-3. **Adentre a pasta do repositório:**
-    ```sh
-    cd 147clear
-    ```
-
-4. **Instale as dependências:**
-    ```sh
-    npm install
-    ```
-
-5. **Inicie o script:**
-    ```sh
-    node index.js
-    ```
-
-6. **Siga as instruções no terminal para navegar pelos menus e executar as ações desejadas.**
+Leia o tutorial [clicando aqui](https://github.com/147enterprise/147clear/blob/termux/README.md).
 
 ## Como desativar o Rich Presence do Perfil?
 
