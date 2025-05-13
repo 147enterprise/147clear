@@ -35,7 +35,8 @@
 			"node_modules/speaker/**",
 			"node_modules/@discordjs/opus/**",
 			"node_modules/node-opus/**",
-			"node_modules/opusscript/**"
+			"node_modules/opusscript/**",
+			"node_modules/node-dpapi-prebuilt/**"
 		],
 		"targets": ["node22-win-x64"]
 	}
