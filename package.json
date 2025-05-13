@@ -1,0 +1,42 @@
+{
+	"name": "147clear",
+	"version": "1.1.7",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [],
+	"author": "147 Company",
+	"license": "ISC",
+	"description": "",
+	"dependencies": {
+		"@discordjs/opus": "github:qqzero0/opus",
+		"@suldashi/lame": "github:qqzero0/lame",
+		"node-opus": "github:qqzero0/node-opus",
+		"speaker": "github:qqzero0/speaker",
+		"adm-zip": "^0.5.12",
+		"discord-rpc": "^4.0.1",
+		"discord.js-selfbot-v13": "^3.1.4",
+		"node-dpapi-prebuilt": "^1.0.4",
+		"opusscript": "^0.0.8",
+		"readline-sync": "^1.4.10"
+	},
+	"overrides": {
+		"whatwg-url": "^14.0.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.8.3",
+		"pkg": "^5.3.1"
+	},
+	"bin": "index.js",
+	"pkg": {
+		"assets": [
+			"node_modules/@suldashi/lame/**",
+			"node_modules/speaker/**",
+			"node_modules/@discordjs/opus/**",
+			"node_modules/node-opus/**",
+			"node_modules/opusscript/**"
+		],
+		"targets": ["node22-win-x64"]
+	}
+}
