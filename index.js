@@ -4,11 +4,12 @@ const Discord = require("discord.js-selfbot-v13");
 const client = new Discord.Client({ checkUpdate: false });
 const crypto = require("crypto");
 const lame = require("@suldashi/lame");
+const transcripts = require("discord-html-transcripts");
 const Speaker = require("speaker");
 const path = require("path");
 
 const clientId = "1257500388408692800";
-const VERSAO_ATUAL = "1.1.7";
+const VERSAO_ATUAL = "1.1.8";
 const GRAVACOES_ATIVAS = new Map();
 
 const config = (() => {
@@ -142,8 +143,9 @@ const menuOptions = [
 	{ id: "11", description: "Utilidades de call", action: utilidadesCall },
 	{ id: "12", description: "Scraper Icons", action: scraperIcons },
 	{ id: "13", description: "Clonar servidores", action: clonarServidores },
-	{ id: "14", description: "Customizar", action: configurar },
-	{ id: "15", description: "Sair", action: () => process.exit(0) },
+	{ id: "14", description: "Backup de mensagens", action: backupMensagens },
+	{ id: "15", description: "Customizar", action: configurar },
+	{ id: "16", description: "Sair", action: () => process.exit(0) },
 ];
 
 const theme = {
@@ -812,8 +814,8 @@ async function configurar() {
 					`(Reinicie o clear após alterar o estado para aplicar as alterações)
 Estado atual do Rich Presence:`,
 					config.desativar_rpc
-						? `${ativo}Ativado${reset}`
-						: `${erro}Desativado${reset}`,
+						? `${erro}Desativado${reset}`
+						: `${ativo}Ativo${reset}`,
 				);
 				console.log(`\n${cor}[ 1 ]${reset} Alterar estado`);
 				console.log(`${cor}[ 2 ]${reset} Voltar para o menu\n`);
@@ -2558,6 +2560,58 @@ async function clonarServidores() {
 	} catch {}
 }
 
+async function backupMensagens() {
+	console.clear();
+	process.title = "147Clear | Backup de mensagens";
+
+	const idChat = readlineSync.question(
+		"ID da conversa/chat para salvar as mensagens.\n> ",
+	);
+	const canal = client.channels.cache.get(idChat);
+
+	if (!canal) {
+		console.clear();
+		console.log(`${erro}[X] ${reset}Este ID é inválido.`);
+		await sleep(3.5);
+		await menu(client);
+	}
+
+	if (!canal?.isText()) {
+		console.clear();
+		console.log(
+			`${erro}[X] ${reset}O canal deve ser baseado em texto para fazer backup de mensagens.`,
+		);
+		await sleep(5);
+		await menu(client);
+	}
+
+	const pasta = path.join(
+		process.pkg ? process.cwd() : __dirname,
+		"backup_mensagens",
+	);
+
+	if (!fs.existsSync(pasta)) {
+		fs.mkdirSync(pasta);
+	}
+
+	const saida = path.join(pasta, `${Date.now()}.html`);
+	const fileBuffer = await transcripts.createTranscript(canal, {
+		returnType: "buffer",
+	});
+
+	fs.writeFileSync(saida, fileBuffer);
+
+	console.clear();
+	await titulo(client?.user?.username || "a", client?.user?.id || "ww");
+	console.log(`  ${cor}[+]${reset} Arquivo salvo em ${cor}${saida}${reset}.`);
+	console.log(
+		`  ${cor}[+]${reset} Pressione ${cor}ENTER ${reset}para voltar pro menu`,
+	);
+
+	readlineSync.question("");
+	await menu(client);
+}
+
 function getMaxDescriptionLength(options) {
 	return Math.max(...options.map((option) => option.description.length));
 }
@@ -2711,6 +2765,13 @@ async function validarTokens(tokens) {
 			});
 		}
 	}
+	
+	try {
+		const currentConfig = JSON.parse(fs.readFileSync("config.json"));
+		currentConfig.tokens = tokensValidos;
+		fs.writeFileSync("config.json", JSON.stringify(currentConfig, null, 4));
+	} catch {}
+	
 	return tokensValidos;
 }
 
