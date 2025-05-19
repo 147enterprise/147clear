@@ -151,10 +151,8 @@ const menuOptions = [
 const theme = {
 	state: `v${VERSAO_ATUAL}`,
 	details: "No menu principal",
-	largeImageKey: "fotogrande",
+	largeImageKey: "why",
 	largeImageText: "147 😎",
-	smallImageKey: "147",
-	smallImageText: "idle",
 };
 
 const cor = hex(config.cor_painel || "#A020F0");
