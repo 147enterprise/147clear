@@ -17,6 +17,7 @@
 
 1. **Clone o repositório:**
     ```sh
+    pkg install git nodejs -y
     git clone --branch termux https://github.com/147enterprise/147clear.git
     cd 147clear
     ```
