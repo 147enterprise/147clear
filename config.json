@@ -1,10 +1,9 @@
 {
     "tokens": [],
     "rpc": {
-        "ativado": true,
         "id_aplicacao": "1257500388408692800",
         "detalhe": "O melhor CL do Discord!",
-        "estado": "/147",
+        "estado": "/147"
     },
     "cor_painel": "#A020F0",
     "delay": "1",
