@@ -198,7 +198,7 @@ const sleep = (seconds) =>
 
 async function updatePresence(presence) {
 	if (!rpc || config.desativar_rpc) return;
-	
+
 	const theme = pegarTema();
 	const activity = {
 		state: presence.state || theme.state,
@@ -839,7 +839,7 @@ async function configurar() {
 				console.log(
 					`(Reinicie o clear após alterar o estado para aplicar as alterações)
 Estado atual do Rich Presence:`,
-					config.rpc.ativado
+					!config.desativar_rpc
 						? `${ativo}Ativo${reset}`
 						: `${erro}Desativado${reset}`,
 				);
@@ -850,7 +850,7 @@ Estado atual do Rich Presence:`,
 
 				switch (opcao) {
 					case "1":
-						config.rpc.ativado = !config.rpc.ativado;
+						config.desativar_rpc = !config.desativar_rpc;
 						fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
 						break;
 					case "2":
