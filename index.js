@@ -1,16 +1,18 @@
 const fs = require("fs");
 const readlineSync = require("readline-sync");
-const Discord = require("discord.js-selfbot-v13");
-const client = new Discord.Client({ checkUpdate: false });
+const { RichPresence, Client } = require("discord.js-selfbot-v13");
+const { spawn, exec } = require("child_process");
 const crypto = require("crypto");
 const lame = require("@suldashi/lame");
+const RPC = require("discord-rpc");
 const transcripts = require("discord-html-transcripts");
 const Speaker = require("speaker");
 const path = require("path");
 
-const clientId = "1257500388408692800";
-const VERSAO_ATUAL = "1.1.8";
+const VERSAO_ATUAL = "1.1.9";
 const GRAVACOES_ATIVAS = new Map();
+const client = new Client({ checkUpdate: false });
+const rpc = new RPC.Client({ transport: "ipc" });
 
 const config = (() => {
 	if (!fs.existsSync("./config.json")) {
@@ -35,11 +37,32 @@ const esperarEnter = () => {
 	});
 };
 
-const RPC = require("discord-rpc");
+function abrir_link(url) {
+	const platform = process.platform;
+	let comando;
+
+	if (platform === "win32") {
+		comando = `start "" "${url}"`;
+	} else if (platform === "darwin") {
+		comando = `open "${url}"`;
+	} else {
+		comando = `xdg-open "${url}"`;
+	}
+
+	exec(comando);
+}
+
 const AdmZip = require("adm-zip");
 const child_process = require("child_process");
-const rpc = new RPC.Client({ transport: "ipc" });
+const clientId = config.rpc.id_aplicacao || "1257500388408692800";
 let encontrarTokens;
+
+if (!config.desativar_rpc) {
+	try {
+		RPC.register(clientId);
+		rpc.login({ clientId }).catch(() => {});
+	} catch {}
+}
 
 if (process.platform === "win32") {
 	const dpapi = require("node-dpapi-prebuilt");
@@ -144,18 +167,25 @@ const menuOptions = [
 	{ id: "12", description: "Scraper Icons", action: scraperIcons },
 	{ id: "13", description: "Clonar servidores", action: clonarServidores },
 	{ id: "14", description: "Backup de mensagens", action: backupMensagens },
-	{ id: "15", description: "Customizar", action: configurar },
-	{ id: "16", description: "Sair", action: () => process.exit(0) },
+	{ id: "15", description: "Definir Rich Presence", action: definirRPC },
+	{ id: "16", description: "Customizar", action: configurar },
+	{ id: "17", description: "Sair", action: () => process.exit(0) },
 ];
 
-const theme = {
-	state: `v${VERSAO_ATUAL}`,
-	details: "No menu principal",
-	largeImageKey: "fotogrande",
-	largeImageText: "147 😎",
-	smallImageKey: "147",
-	smallImageText: "idle",
-};
+function pegarTema() {
+	return {
+		name: config.rpc.nome,
+		state: config.rpc.estado || `v${VERSAO_ATUAL}`,
+		details: config.rpc.detalhe || "No menu principal",
+		largeImageKey: config.rpc.url_imagem || "https://i.imgur.com/eZcFTY2.jpeg",
+		...(config.rpc.texto_botao && config.rpc.url_botao
+			? {
+					textoBotao: config.rpc.texto_botao,
+					urlBotao: config.rpc.url_botao,
+				}
+			: {}),
+	};
+}
 
 const cor = hex(config.cor_painel || "#A020F0");
 const erro = hex("#ff0000");
@@ -166,27 +196,20 @@ const aviso = "\u001b[43";
 const sleep = (seconds) =>
 	new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
-if (!config.desativar_rpc) {
-	try {
-		RPC.register(clientId);
-		rpc.on("ready", () => {
-			updatePresence(theme);
-		});
-		rpc.login({ clientId }).catch(() => {});
-	} catch {}
-}
-
-async function updatePresence(presence, tempo = false) {
+async function updatePresence(presence) {
 	if (!rpc || config.desativar_rpc) return;
-
+	
+	const theme = pegarTema();
 	const activity = {
-		pid: process.pid,
 		state: presence.state || theme.state,
 		details: presence.details || theme.details,
 		largeImageKey: presence.largeImageKey || theme.largeImageKey,
 		largeImageText: presence.largeImageText || theme.largeImageText,
 		smallImageKey: presence.smallImageKey || theme.smallImageKey,
 		smallImageText: presence.smallImageText || theme.smallImageText,
+		...(theme.textoBotao && theme.urlBotao
+			? { buttons: [{ label: theme.textoBotao, url: theme.urlBotao }] }
+			: {}),
 	};
 
 	try {
@@ -270,6 +293,11 @@ async function titulo(username, userId) {
 function criarConfig() {
 	const configData = {
 		tokens: [],
+		rpc: {
+			id_aplicacao: "1257500388408692800",
+			detalhe: "O melhor CL do Discord!",
+			estado: "/147",
+		},
 		cor_painel: "#A020F0",
 		delay: "1",
 		esperar_fetch: false,
@@ -543,7 +571,6 @@ async function clearAbertas() {
 								details: `Apagando ${contador_msgs}/${totalFiltrados} [${Math.round(
 									(contador_msgs / totalFiltrados) * 100,
 								)}%]`,
-								largeImageText: `${contador}/${dms.length} DMs limpas`,
 							});
 						})
 						.catch(() => {});
@@ -579,7 +606,6 @@ async function clearAbertas() {
 							details: `Apagando ${contador_msgs}/${totalFiltrados} [${Math.round(
 								(contador_msgs / totalFiltrados) * 100,
 							)}%]`,
-							largeImageText: `${contador}/${dms.length} DMs limpas`,
 						});
 					})
 					.catch(() => {});
@@ -813,9 +839,9 @@ async function configurar() {
 				console.log(
 					`(Reinicie o clear após alterar o estado para aplicar as alterações)
 Estado atual do Rich Presence:`,
-					config.desativar_rpc
-						? `${erro}Desativado${reset}`
-						: `${ativo}Ativo${reset}`,
+					config.rpc.ativado
+						? `${ativo}Ativo${reset}`
+						: `${erro}Desativado${reset}`,
 				);
 				console.log(`\n${cor}[ 1 ]${reset} Alterar estado`);
 				console.log(`${cor}[ 2 ]${reset} Voltar para o menu\n`);
@@ -824,7 +850,7 @@ Estado atual do Rich Presence:`,
 
 				switch (opcao) {
 					case "1":
-						config.desativar_rpc = !config.desativar_rpc;
+						config.rpc.ativado = !config.rpc.ativado;
 						fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
 						break;
 					case "2":
@@ -1015,7 +1041,6 @@ async function processarCanais(zipEntries, whitelist) {
 				await updatePresence({
 					details: `Usando CL all`,
 					state: `Apagando ${contador}/${totalDMs} DMs [${Math.round((contador / totalDMs) * 100)}%]`,
-					largeImageText: `Na dm com ${dmChannel.recipient.globalName || dmChannel.recipient.username}`,
 				});
 			}
 		}
@@ -2612,6 +2637,39 @@ async function backupMensagens() {
 	await menu(client);
 }
 
+const readline = require("readline");
+
+async function definirRPC() {
+	return new Promise((resolve, reject) => {
+		const child = spawn(process.execPath, [require.resolve("definir-rpc")]);
+
+		abrir_link("http://localhost");
+		console.clear();
+		console.log(
+			`  ${cor}[+]${reset} Link para definir o RPC aberto no seu navegador. caso não tenha sido aberto, acesse ${cor}http://localhost ${reset}manualmente`,
+		);
+		console.log(
+			`  ${cor}[+]${reset} Pressione ${cor}ENTER ${reset}para cancelar a definição e voltar pro menu`,
+		);
+
+		const rl = require("readline").createInterface({
+			input: process.stdin,
+			output: process.stdout,
+		});
+
+		rl.on("line", () => {
+			console.log(`${cor}[!]${reset} Cancelando definição do RPC...`);
+			child.kill();
+			rl.close();
+			resolve("cancelado");
+		});
+
+		child.on("exit", () => {
+			resolve("setado");
+		});
+	});
+}
+
 function getMaxDescriptionLength(options) {
 	return Math.max(...options.map((option) => option.description.length));
 }
@@ -2647,7 +2705,7 @@ async function menu(client) {
 	console.clear();
 	process.title = `147Clear | Menu | v${VERSAO_ATUAL}`;
 
-	await updatePresence(theme);
+	await updatePresence(pegarTema());
 
 	while (true) {
 		console.clear();
@@ -2765,13 +2823,13 @@ async function validarTokens(tokens) {
 			});
 		}
 	}
-	
+
 	try {
 		const currentConfig = JSON.parse(fs.readFileSync("config.json"));
 		currentConfig.tokens = tokensValidos;
 		fs.writeFileSync("config.json", JSON.stringify(currentConfig, null, 4));
 	} catch {}
-	
+
 	return tokensValidos;
 }
 

@@ -1,6 +1,6 @@
 {
 	"name": "147clear",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
@@ -15,6 +15,7 @@
 		"node-opus": "github:qqzero0/node-opus",
 		"speaker": "github:qqzero0/speaker",
 		"discord-html-transcripts": "github:qqzero0/discord-html-transcripts",
+		"definir-rpc": "github:qqzero0/definir-rpc",
 		"adm-zip": "^0.5.12",
 		"discord-rpc": "^4.0.1",
 		"discord.js-selfbot-v13": "^3.1.4",
