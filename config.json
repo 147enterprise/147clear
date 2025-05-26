@@ -1,11 +1,11 @@
 {
-	"tokens": [],
-	"rpc": {
-		"id_aplicacao": "1257500388408692800",
-		"detalhe": "O melhor CL do Discord!",
-		"estado": "/147"
-	},
-	"cor_painel": "#A020F0",
-	"delay": "1",
-	"esperar_fetch": false
+    "tokens": [],
+    "rpc": {
+        "id_aplicacao": "1257500388408692800",
+        "detalhe": "O melhor CL do Discord!",
+        "estado": "/147"
+    },
+    "cor_painel": "#A020F0",
+    "delay": "1",
+    "esperar_fetch": false
 }

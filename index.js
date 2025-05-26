@@ -1321,11 +1321,9 @@ async function clearPackage() {
 	if (tem !== "1") return menu(client);
 
 	if (process.platform === "win32") {
-		const child = spawnSync(
-			"powershell.exe",
-			["-Command", psScript],
-			{ encoding: "utf8" },
-		);
+		const child = spawnSync("powershell.exe", ["-Command", psScript], {
+			encoding: "utf8",
+		});
 		const path = child.stdout.toString().trim();
 		if (!path) {
 			console.clear();
@@ -1524,11 +1522,9 @@ async function selecionarArquivoZip() {
       Write-Output $zipFile
     `;
 
-		const child = spawnSync(
-			"powershell.exe",
-			["-Command", psScript],
-			{ encoding: "utf8" },
-		);
+		const child = spawnSync("powershell.exe", ["-Command", psScript], {
+			encoding: "utf8",
+		});
 		return child.stdout.toString().trim();
 	} else {
 		if (!fs.existsSync("package.zip")) {
@@ -2641,6 +2637,7 @@ const readline = require("readline");
 async function definirRPC() {
 	return new Promise((resolve, reject) => {
 		const child = spawn(process.execPath, [require.resolve("definir-rpc")]);
+		let encerrado = false;
 
 		abrir_link("http://localhost");
 		console.clear();
@@ -2657,6 +2654,8 @@ async function definirRPC() {
 		});
 
 		rl.on("line", () => {
+			if (encerrado) return;
+			encerrado = true;
 			console.log(`${cor}[!]${reset} Cancelando definição do RPC...`);
 			child.kill();
 			rl.close();
@@ -2664,6 +2663,13 @@ async function definirRPC() {
 		});
 
 		child.on("exit", () => {
+			if (encerrado) return;
+			encerrado = true;
+			try {
+				process.stdin.setRawMode(false);
+				process.stdin.resume();
+			} catch {}
+			rl.close();
 			resolve("setado");
 		});
 	});
