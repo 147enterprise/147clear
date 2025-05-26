@@ -1,6 +1,6 @@
 const fs = require("fs");
 const readlineSync = require("readline-sync");
-const { RichPresence, Client } = require("discord.js-selfbot-v13");
+const { Client } = require("discord.js-selfbot-v13");
 const { spawn, exec } = require("child_process");
 const crypto = require("crypto");
 const lame = require("@suldashi/lame");
