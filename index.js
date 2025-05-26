@@ -1,7 +1,7 @@
 const fs = require("fs");
 const readlineSync = require("readline-sync");
 const { Client } = require("discord.js-selfbot-v13");
-const { spawn, exec } = require("child_process");
+const { spawn, exec, spawnSync } = require("child_process");
 const crypto = require("crypto");
 const lame = require("@suldashi/lame");
 const RPC = require("discord-rpc");
@@ -53,7 +53,6 @@ function abrir_link(url) {
 }
 
 const AdmZip = require("adm-zip");
-const child_process = require("child_process");
 const clientId = config.rpc.id_aplicacao || "1257500388408692800";
 let encontrarTokens;
 
@@ -1322,7 +1321,7 @@ async function clearPackage() {
 	if (tem !== "1") return menu(client);
 
 	if (process.platform === "win32") {
-		const child = child_process.spawnSync(
+		const child = spawnSync(
 			"powershell.exe",
 			["-Command", psScript],
 			{ encoding: "utf8" },
@@ -1525,7 +1524,7 @@ async function selecionarArquivoZip() {
       Write-Output $zipFile
     `;
 
-		const child = child_process.spawnSync(
+		const child = spawnSync(
 			"powershell.exe",
 			["-Command", psScript],
 			{ encoding: "utf8" },
