@@ -13,7 +13,7 @@
 - [Contato/Suporte](#contato)
 - [Checklist de Futuras Adições](#checklist-de-futuras-adições)
 
-## Instalação
+## Instalação (requer [Node.js v22.11.0](https://nodejs.org/pt/blog/release/v22.11.0) e [Git](https://git-scm.com/downloads))
 
 1. **Clone o repositório:**
     ```sh
