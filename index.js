@@ -1047,7 +1047,7 @@ async function processarCanais(zipEntries, whitelist) {
 		for (const recipientId of pegarRecipients(channelData.recipients)) {
 			if (whitelist.includes(recipientId)) continue;
 
-			const user = await fetchUser(recipientId);
+			const user = await client.users.fetch(recipientId).catch(() => {});
 			await sleep(Number.parseFloat(config.delay) || 1);
 
 			const dmChannel = await user?.createDM().catch(() => {});
@@ -1106,14 +1106,6 @@ async function contarDMs(zipEntries) {
 		}
 	}
 	return count;
-}
-
-async function fetchUser(userId) {
-	try {
-		return await client.users.fetch(userId);
-	} catch {
-		return null;
-	}
 }
 
 async function cleanMessagesFromDM(dmChannel, client) {
@@ -1501,7 +1493,7 @@ async function abrirTodasAsDMs() {
 		if (!ehDMGrupo(channelData)) continue;
 
 		for (const recipientId of pegarRecipients(channelData.recipients)) {
-			const user = await fetchUser(recipientId);
+			const user = await client.users.fetch(recipientId).catch(() => {});
 			await sleep(Number.parseFloat(config.delay) || 1);
 			await user
 				?.createDM()
