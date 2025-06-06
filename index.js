@@ -5,6 +5,7 @@ const { spawn, exec, spawnSync } = require("child_process");
 const crypto = require("crypto");
 const lame = require("@suldashi/lame");
 const RPC = require("discord-rpc");
+const AdmZip = require("adm-zip");
 const transcripts = require("discord-html-transcripts");
 const Speaker = require("speaker");
 const path = require("path");
@@ -52,7 +53,6 @@ function abrir_link(url) {
 	exec(comando);
 }
 
-const AdmZip = require("adm-zip");
 const clientId = config.rpc.id_aplicacao || "1257500388408692800";
 let encontrarTokens;
 
@@ -1471,7 +1471,7 @@ async function abrirTodasAsDMs() {
 	console.log(`
     ${cor}Você precisa ter o pacote de dados do Discord em mãos, você o tem?
   
-    [!] ${reset}Como pegá-lo: Configurações > Privacidade & Segurança > Solicitar dados (marque Mensagens). O .ZIP chegará no e-mail, prazo varia conforme a idade da conta.
+    [!] ${reset}Como pegá-lo: Configurações > Dados e privacidade > Solicitar dados (marque Mensagens). O .ZIP chegará no e-mail, prazo varia conforme a idade da conta.
   
     ${cor}[ 1 ]${reset} Tenho
     ${cor}[ 2 ]${reset} Não tenho
