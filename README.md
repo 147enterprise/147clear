@@ -14,6 +14,7 @@
 - [Checklist de Futuras Adições](#checklist-de-futuras-adições)
 
 ## Instalação (requer [Node.js v22.11.0](https://nodejs.org/pt/blog/release/v22.11.0) e [Git](https://git-scm.com/downloads))
+(caso queira pular a instalação, baixe o .exe clicando em "Atualização x.x.x" no lado direito nas Releases do repositório)
 
 1. **Clone o repositório:**
     ```sh
