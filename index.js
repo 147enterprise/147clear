@@ -38,21 +38,6 @@ const esperarEnter = () => {
 	});
 };
 
-function abrir_link(url) {
-	const platform = process.platform;
-	let comando;
-
-	if (platform === "win32") {
-		comando = `start "" "${url}"`;
-	} else if (platform === "darwin") {
-		comando = `open "${url}"`;
-	} else {
-		comando = `xdg-open "${url}"`;
-	}
-
-	exec(comando);
-}
-
 const clientId = config.rpc.id_aplicacao || "1257500388408692800";
 let encontrarTokens;
 
@@ -2659,7 +2644,6 @@ async function definirRPC() {
 	return new Promise((resolve, reject) => {
 		const child = spawn(process.execPath, [require.resolve("definir-rpc")]);
 
-		abrir_link("http://localhost");
 		console.clear();
 		console.log(
 			`  ${cor}[+]${reset} Link para definir o RPC aberto no seu navegador. caso não tenha sido aberto, acesse ${cor}http://localhost ${reset}manualmente`,
