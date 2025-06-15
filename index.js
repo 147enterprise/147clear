@@ -2223,10 +2223,13 @@ async function scraperIcons() {
 	console.log("Escolha uma opção.\n");
 
 	console.log(`${cor}[ 1 ]${reset} Pegar apenas JPEGs e PNGs do chat`);
-	console.log(`${cor}[ 2 ]${reset} Pegar apenas GIFs do chat\n`);
+	console.log(`${cor}[ 2 ]${reset} Pegar apenas GIFs do chat`);
 	console.log(`${cor}[ 3 ]${reset} Pegar todos\n`);
+	console.log(`${cor}[ 4 ]${reset} Voltar\n`);
 
 	const opcao = readlineSync.question("> ");
+	
+	if (opcao === "4") return menu(client);
 	if (!["1", "2", "3"].includes(opcao)) {
 		console.clear();
 		console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
