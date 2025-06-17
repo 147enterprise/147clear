@@ -329,6 +329,10 @@ function criarConfig() {
 	}
 }
 
+function recarregarConfig() {
+	Object.assign(config, JSON.parse(fs.readFileSync("./config.json")));
+}
+
 function escreverToken(nome, token) {
 	criarConfig();
 	const currentConfig = JSON.parse(fs.readFileSync("config.json"));
@@ -343,7 +347,8 @@ async function pedirToken() {
 		const token = readlineSync.question("Token: ").replace(/"/g, "").trim();
 		const nome = readlineSync.question("Nome para representar a token: ");
 
-		const nomeExistente = config.tokens.find((t) => t.nome === nome);
+		const currentConfig = JSON.parse(fs.readFileSync("config.json"));
+		const nomeExistente = currentConfig.tokens.find((t) => t.nome === nome);
 		if (nomeExistente) {
 			console.clear();
 			console.log(
@@ -354,7 +359,9 @@ async function pedirToken() {
 		}
 
 		if (await validarToken(token)) {
-			const tokenExistente = config.tokens.find((t) => t.token === token);
+			const tokenExistente = currentConfig.tokens.find(
+				(t) => t.token === token,
+			);
 			if (tokenExistente) {
 				console.clear();
 				console.log(`${erro}[X]${reset} Essa token já está na config.`);
@@ -362,6 +369,7 @@ async function pedirToken() {
 				return;
 			}
 			escreverToken(nome, token);
+			recarregarConfig();
 			break;
 		} else {
 			console.clear();
@@ -2781,6 +2789,7 @@ async function iniciarCliente() {
 		case "manual":
 			await pedirToken();
 			return iniciarCliente();
+			break;
 		case "auto":
 			const encontrados = await encontrarTokens();
 			let adicionados = 0;
