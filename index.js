@@ -1,5 +1,6 @@
 const fs = require("fs");
 const readlineSync = require("readline-sync");
+const readline = require("readline");
 const { Client } = require("discord.js-selfbot-v13");
 const { spawn, exec, spawnSync } = require("child_process");
 const crypto = require("crypto");
@@ -26,7 +27,7 @@ const config = (() => {
 
 const esperarEnter = () => {
 	return new Promise((resolve) => {
-		const rl = require("readline").createInterface({
+		const rl = readline.createInterface({
 			input: process.stdin,
 			output: process.stdout,
 		});
@@ -37,21 +38,6 @@ const esperarEnter = () => {
 		});
 	});
 };
-
-function abrir_link(url) {
-	const platform = process.platform;
-	let comando;
-
-	if (platform === "win32") {
-		comando = `start "" "${url}"`;
-	} else if (platform === "darwin") {
-		comando = `open "${url}"`;
-	} else {
-		comando = `xdg-open "${url}"`;
-	}
-
-	exec(comando);
-}
 
 const clientId = config.rpc.id_aplicacao || "1257500388408692800";
 let encontrarTokens;
@@ -1074,7 +1060,9 @@ async function processarCanais(zipEntries, whitelist) {
 }
 
 function canalValido(entry) {
-	return /^(?:messages\/c)[0-9]+(?:\/channel\.json)$/.test(entry.entryName);
+	return /^(?:messages|Mensagens)\/c[0-9]+\/channel\.json$/.test(
+		entry.entryName,
+	);
 }
 
 function dadosCanal(entry) {
@@ -1666,7 +1654,7 @@ async function utilidadesCall() {
     ${cor}[ 3 ]${reset} Voltar
 		`);
 		const escolha = readlineSync.question("> ");
-		if (escolha === "3") return await menu(client);
+		if (escolha === "3") return menu(client);
 
 		if (!["1", "2"].includes(escolha)) {
 			console.clear();
@@ -2238,10 +2226,13 @@ async function scraperIcons() {
 	console.log("Escolha uma opção.\n");
 
 	console.log(`${cor}[ 1 ]${reset} Pegar apenas JPEGs e PNGs do chat`);
-	console.log(`${cor}[ 2 ]${reset} Pegar apenas GIFs do chat\n`);
+	console.log(`${cor}[ 2 ]${reset} Pegar apenas GIFs do chat`);
 	console.log(`${cor}[ 3 ]${reset} Pegar todos\n`);
+	console.log(`${cor}[ 4 ]${reset} Voltar\n`);
 
 	const opcao = readlineSync.question("> ");
+
+	if (opcao === "4") return await menu(client);
 	if (!["1", "2", "3"].includes(opcao)) {
 		console.clear();
 		console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
@@ -2653,13 +2644,10 @@ async function backupMensagens() {
 	await menu(client);
 }
 
-const readline = require("readline");
-
 async function definirRPC() {
 	return new Promise((resolve, reject) => {
 		const child = spawn(process.execPath, [require.resolve("definir-rpc")]);
 
-		abrir_link("http://localhost");
 		console.clear();
 		console.log(
 			`  ${cor}[+]${reset} Link para definir o RPC aberto no seu navegador. caso não tenha sido aberto, acesse ${cor}http://localhost ${reset}manualmente`,
@@ -2668,7 +2656,7 @@ async function definirRPC() {
 			`  ${cor}[+]${reset} Pressione ${cor}ENTER ${reset}para cancelar a definição e voltar pro menu`,
 		);
 
-		const rl = require("readline").createInterface({
+		const rl = readline.createInterface({
 			input: process.stdin,
 			output: process.stdout,
 		});
