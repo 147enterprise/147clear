@@ -16,14 +16,12 @@ const GRAVACOES_ATIVAS = new Map();
 const client = new Client({ checkUpdate: false });
 const rpc = new RPC.Client({ transport: "ipc" });
 
-const config = (() => {
+const config = () => {
 	if (!fs.existsSync("./config.json")) {
 		criarConfig();
 	}
-	return JSON.parse(
-		fs.readFileSync(path.join(process.cwd(), "config.json"), "utf8"),
-	);
-})();
+	return JSON.parse(fs.readFileSync("./config.json", "utf8"));
+};
 
 const esperarEnter = () => {
 	return new Promise((resolve) => {
@@ -39,10 +37,20 @@ const esperarEnter = () => {
 	});
 };
 
-const clientId = config.rpc.id_aplicacao || "1257500388408692800";
+const clientId = config().rpc.id_aplicacao || "1257500388408692800";
 let encontrarTokens;
 
-if (!config.desativar_rpc) {
+const vermelho = "\x1b[31m";
+const ativo = process.stdout.isTTY ? hex("#19e356") : "";
+const cor = process.stdout.isTTY ? hex(config().cor_painel || "#A020F0") : "";
+const reset = process.stdout.isTTY ? "\x1b[0m" : "";
+const erro = process.stdout.isTTY ? `${vermelho}×${reset}` : "×";
+const aviso = process.stdout.isTTY ? "\u001b[43" : "";
+
+const sleep = (seconds) =>
+	new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+
+if (!config().desativar_rpc) {
 	try {
 		RPC.register(clientId);
 		rpc.login({ clientId }).catch(() => {});
@@ -186,30 +194,22 @@ const menuOptions = [
 
 function pegarTema() {
 	return {
-		name: config.rpc.nome,
-		state: config.rpc.estado || `v${VERSAO_ATUAL}`,
-		details: config.rpc.detalhe || "No menu principal",
-		largeImageKey: config.rpc.url_imagem || "https://i.imgur.com/eZcFTY2.jpeg",
-		...(config.rpc.texto_botao && config.rpc.url_botao
+		name: config().rpc.nome,
+		state: config().rpc.estado || `v${VERSAO_ATUAL}`,
+		details: config().rpc.detalhe || "No menu principal",
+		largeImageKey:
+			config().rpc.url_imagem || "https://i.imgur.com/eZcFTY2.jpeg",
+		...(config().rpc.texto_botao && config().rpc.url_botao
 			? {
-					textoBotao: config.rpc.texto_botao,
-					urlBotao: config.rpc.url_botao,
+					textoBotao: config().rpc.texto_botao,
+					urlBotao: config().rpc.url_botao,
 				}
 			: {}),
 	};
 }
 
-const cor = hex(config.cor_painel || "#A020F0");
-const erro = hex("#ff0000");
-const ativo = hex("#19e356");
-const reset = hex("#ffffff");
-const aviso = "\u001b[43";
-
-const sleep = (seconds) =>
-	new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-
 async function updatePresence(presence) {
-	if (!rpc || config.desativar_rpc) return;
+	if (!rpc || config().desativar_rpc) return;
 
 	const theme = pegarTema();
 	const activity = {
@@ -329,10 +329,6 @@ function criarConfig() {
 	}
 }
 
-function recarregarConfig() {
-	Object.assign(config, JSON.parse(fs.readFileSync("./config.json")));
-}
-
 function escreverToken(nome, token) {
 	criarConfig();
 	const currentConfig = JSON.parse(fs.readFileSync("config.json"));
@@ -352,7 +348,7 @@ async function pedirToken() {
 		if (nomeExistente) {
 			console.clear();
 			console.log(
-				`${erro}[X]${reset} Já existe uma token com esse nome. Insira um nome novo.\n`,
+				`${erro} Já existe uma token com esse nome. Insira um nome novo.\n`,
 			);
 			await sleep(5);
 			return;
@@ -364,16 +360,15 @@ async function pedirToken() {
 			);
 			if (tokenExistente) {
 				console.clear();
-				console.log(`${erro}[X]${reset} Essa token já está na config.`);
+				console.log(`${erro} Essa token já está na config.`);
 				await sleep(5);
 				return;
 			}
 			escreverToken(nome, token);
-			recarregarConfig();
 			break;
 		} else {
 			console.clear();
-			console.log(`${erro}[X]${reset} Token inválida, insira outra.\n`);
+			console.log(`${erro} Token inválida, insira outra.\n`);
 		}
 	}
 }
@@ -427,7 +422,7 @@ async function clearUnica() {
 		const user = await client.users.fetch(id).catch(() => {});
 		if (!user) {
 			console.clear();
-			console.log(`${erro}[X]${reset} Este ID é inválido.`);
+			console.log(`${erro} Este ID é inválido.`);
 			await sleep(3.5);
 			await clearUnica();
 		}
@@ -437,9 +432,7 @@ async function clearUnica() {
 			.then((c) => ((id = c.id), (canal = c)))
 			.catch(async () => {
 				console.clear();
-				console.log(
-					`${erro}[X]${reset} Não foi possível abrir DM com o usuário.`,
-				);
+				console.log(`${erro} Não foi possível abrir DM com o usuário.`);
 				await sleep(3.5);
 				await clearUnica();
 			});
@@ -448,7 +441,7 @@ async function clearUnica() {
 	}
 
 	let totalFiltrados = 0;
-	if (config.esperar_fetch === false) {
+	if (config().esperar_fetch === false) {
 		let ultimoid;
 		while (true) {
 			const fetched = await canal.messages.fetch({
@@ -465,7 +458,7 @@ async function clearUnica() {
 			totalFiltrados += msgsFiltradas.length;
 
 			for (const [index, msg] of msgsFiltradas.entries()) {
-				await sleep(Number.parseFloat(config.delay) || 1);
+				await sleep(Number.parseFloat(config().delay) || 1);
 				await msg
 					.delete()
 					.then(async () => {
@@ -492,7 +485,7 @@ async function clearUnica() {
 		const msgs = await fetchMsgs(id);
 		totalFiltrados = msgs.length;
 		for (const [index, msg] of msgs.entries()) {
-			await sleep(Number.parseFloat(config.delay) || 1);
+			await sleep(Number.parseFloat(config().delay) || 1);
 			await msg
 				.delete()
 				.then(async () => {
@@ -517,7 +510,7 @@ async function clearUnica() {
 
 	if (!totalFiltrados) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não tem mensagens ai.`);
+		console.log(`${erro} Você não tem mensagens ai.`);
 		await sleep(3.5);
 		menu(client);
 	}
@@ -538,7 +531,7 @@ async function clearAbertas() {
 
 	if (!dms.length) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não tem DMs abertas.`);
+		console.log(`${erro} Você não tem DMs abertas.`);
 		await sleep(3.5);
 		return menu(client);
 	}
@@ -553,7 +546,7 @@ async function clearAbertas() {
 		let contador_msgs = 0;
 		let totalFiltrados = 0;
 
-		if (config.esperar_fetch === false) {
+		if (config().esperar_fetch === false) {
 			let ultimoid;
 			while (true) {
 				const fetched = await dm.messages.fetch({
@@ -570,7 +563,7 @@ async function clearAbertas() {
 				totalFiltrados += msgsFiltradas.length;
 
 				for (const [index, msg] of msgsFiltradas.entries()) {
-					await sleep(Number.parseFloat(config.delay) || 1);
+					await sleep(Number.parseFloat(config().delay) || 1);
 					await msg
 						.delete()
 						.then(async () => {
@@ -605,7 +598,7 @@ async function clearAbertas() {
 			if (!msgs.length) continue;
 
 			for (const [index, msg] of msgs.entries()) {
-				await sleep(Number.parseFloat(config.delay) || 1);
+				await sleep(Number.parseFloat(config().delay) || 1);
 				await msg
 					.delete()
 					.then(async () => {
@@ -651,13 +644,14 @@ async function removerAmigos() {
 
 	if (!amigos.length) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não tem amigos :(`);
-		await sleep(3.5);
+		console.log(`${erro} Você não tem amigos :(`);
+		await sleep(5);
 		menu(client);
+		return;
 	}
 
 	for (const amigo of amigos) {
-		await sleep(Number.parseFloat(config.delay) || 1);
+		await sleep(Number.parseFloat(config().delay) || 1);
 		const user = await client.users.fetch(amigo).catch(() => {});
 		await client.relationships
 			.deleteRelationship(user)
@@ -693,13 +687,13 @@ async function removerServidores() {
 
 	if (!servers.length) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não está em nenhum servidor.`);
+		console.log(`${erro} Você não está em nenhum servidor.`);
 		await sleep(3.5);
 		menu(client);
 	}
 
 	for (const server of servers) {
-		await sleep(Number.parseFloat(config.delay) || 1);
+		await sleep(Number.parseFloat(config().delay) || 1);
 		await server
 			.leave()
 			.then(async () => {
@@ -736,7 +730,7 @@ async function fecharDMs() {
 
 	if (!dms.length) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não tem DMs abertas.`);
+		console.log(`${erro} Você não tem DMs abertas.`);
 		await sleep(3.5);
 		menu(client);
 	}
@@ -794,7 +788,7 @@ async function configurar() {
 			const delayInSeconds = Number.parseFloat(delayInput);
 			if (isNaN(delayInSeconds) || delayInSeconds <= 0) {
 				console.clear();
-				console.log(`${erro}[X]${reset} Isso não é um delay válido.`);
+				console.log(`${erro} Isso não é um delay válido.`);
 				await sleep(3.5);
 			} else {
 				const currentConfig = JSON.parse(fs.readFileSync("config.json"));
@@ -819,7 +813,7 @@ async function configurar() {
 				process.exit(0);
 			} catch {
 				console.clear();
-				console.log(`${erro}[X]${reset} Isso não é uma cor HEX válida.`);
+				console.log(`${erro} Isso não é uma cor HEX válida.`);
 				await sleep(3.5);
 			}
 		},
@@ -829,9 +823,9 @@ async function configurar() {
 				console.log("Esperar a obtenção de TODAS as mensagens para apagar?");
 				console.log(
 					"Estado atual:",
-					config.esperar_fetch
+					config().esperar_fetch
 						? `${ativo}Ativado${reset}`
-						: `${erro}Desativado${reset}`,
+						: `${vermelho}Desativado${reset}`,
 				);
 				console.log(`\n${cor}[ 1 ]${reset} Alterar estado`);
 				console.log(`${cor}[ 2 ]${reset} Voltar para o menu\n`);
@@ -840,14 +834,18 @@ async function configurar() {
 
 				switch (opcao) {
 					case "1":
-						config.esperar_fetch = !config.esperar_fetch;
-						fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
+						const configData = config();
+						configData.esperar_fetch = !configData.esperar_fetch;
+						fs.writeFileSync(
+							"config.json",
+							JSON.stringify(configData, null, 4),
+						);
 						break;
 					case "2":
 						return menu(client);
 					default:
 						console.clear();
-						console.log(`${erro}[X] ${reset} Opção inválida, tente novamente.`);
+						console.log(`${erro} Opção inválida, tente novamente.`);
 						await sleep(1.5);
 						break;
 				}
@@ -859,9 +857,9 @@ async function configurar() {
 				console.log(
 					`(Reinicie o clear após alterar o estado para aplicar as alterações)
 Estado atual do Rich Presence:`,
-					!config.desativar_rpc
+					!config().desativar_rpc
 						? `${ativo}Ativo${reset}`
-						: `${erro}Desativado${reset}`,
+						: `${vermelho}Desativado${reset}`,
 				);
 				console.log(`\n${cor}[ 1 ]${reset} Alterar estado`);
 				console.log(`${cor}[ 2 ]${reset} Voltar para o menu\n`);
@@ -870,14 +868,18 @@ Estado atual do Rich Presence:`,
 
 				switch (opcao) {
 					case "1":
-						config.desativar_rpc = !config.desativar_rpc;
-						fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
+						const configData2 = config();
+						configData2.desativar_rpc = !configData2.desativar_rpc;
+						fs.writeFileSync(
+							"config.json",
+							JSON.stringify(configData2, null, 4),
+						);
 						break;
 					case "2":
 						return menu(client);
 					default:
 						console.clear();
-						console.log(`${erro}[X] ${reset} Opção inválida, tente novamente.`);
+						console.log(`${erro} Opção inválida, tente novamente.`);
 						await sleep(1.5);
 						break;
 				}
@@ -887,7 +889,7 @@ Estado atual do Rich Presence:`,
 			return menu(client);
 		},
 		default: async () => {
-			console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
+			console.log(`${erro} Opção inválida, tente novamente.`);
 			await sleep(1.5);
 			console.clear();
 		},
@@ -909,7 +911,7 @@ async function kosameFarm() {
 
 	if (!canal) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}ID inválido, tente novamente.`);
+		console.log(`${erro} ID inválido, tente novamente.`);
 		await sleep(1.5);
 		return menu(client);
 	}
@@ -917,7 +919,7 @@ async function kosameFarm() {
 	if (!canal.permissionsFor(canal.guild.members.me).has("SEND_MESSAGES")) {
 		console.clear();
 		console.log(
-			`${erro}[X] ${reset}Você não tem permissão para enviar mensagens neste canal.`,
+			`${erro} Você não tem permissão para enviar mensagens neste canal.`,
 		);
 		await sleep(4.5);
 		return menu(client);
@@ -969,7 +971,7 @@ async function kosameFarm() {
 				Date.now() - comandos[comandoReenviado].ultimoEnvio < 15 * 1000
 			) {
 				console.log(
-					`  ${erro}[!] ${reset}Ignorando retry de ${msg_kk.content}, enviado há pouco tempo.`,
+					`  ${erro} Ignorando retry de ${msg_kk.content}, enviado há pouco tempo.`,
 				);
 				return;
 			}
@@ -1012,9 +1014,7 @@ async function kosameFarm() {
 					cmd.ultimoEnvio = Date.now();
 					console.log(`  ${cor}[+] ${reset}Enviado: ${cmd.comando}`);
 				} catch (e) {
-					console.log(
-						`  ${erro}[!] ${reset}Falha ao enviar ${cmd.comando}: ${e.message}`,
-					);
+					console.log(`  ${erro} Falha ao enviar ${cmd.comando}: ${e.message}`);
 				}
 			}
 		}
@@ -1042,7 +1042,7 @@ async function processarCanais(zipEntries, whitelist) {
 			if (whitelist.includes(recipientId)) continue;
 
 			const user = await client.users.fetch(recipientId).catch(() => {});
-			await sleep(Number.parseFloat(config.delay) || 1);
+			await sleep(Number.parseFloat(config().delay) || 1);
 
 			const dmChannel = await user?.createDM().catch(() => {});
 			if (dmChannel) {
@@ -1108,7 +1108,7 @@ async function cleanMessagesFromDM(dmChannel, client) {
 	let deletedCount = 0;
 	let totalFiltrados = 0;
 
-	if (config.esperar_fetch === false) {
+	if (config().esperar_fetch === false) {
 		let ultimoid;
 
 		while (true) {
@@ -1126,7 +1126,7 @@ async function cleanMessagesFromDM(dmChannel, client) {
 			totalFiltrados += msgsFiltradas.length;
 
 			for (const msg of msgsFiltradas) {
-				await sleep(Number.parseFloat(config.delay) || 1);
+				await sleep(Number.parseFloat(config().delay) || 1);
 
 				await msg
 					.delete()
@@ -1158,7 +1158,7 @@ async function cleanMessagesFromDM(dmChannel, client) {
 		totalFiltrados = messages.length;
 
 		for (const msg of messages) {
-			await sleep(Number.parseFloat(config.delay) || 1);
+			await sleep(Number.parseFloat(config().delay) || 1);
 
 			await msg
 				.delete()
@@ -1343,9 +1343,10 @@ async function clearPackage() {
 		const path = child.stdout.toString().trim();
 		if (!path) {
 			console.clear();
-			console.log(`${erro}[X]${reset} Você não selecionou o ZIP.`);
+			console.log(`${erro} Você não selecionou o ZIP.`);
 			await sleep(5);
 			await menu(client);
+			return;
 		}
 
 		const buffer_zip = fs.readFileSync(path);
@@ -1363,7 +1364,7 @@ async function clearPackage() {
 		if (!fs.existsSync("package.zip")) {
 			console.clear();
 			console.log(
-				`${erro}[X]${reset} Não achei o arquivo "package.zip", coloque-o na mesma pasta que eu(${path.basename(__filename)}) e tente novamente.`,
+				`${erro} Não achei o arquivo "package.zip", coloque-o na mesma pasta que eu(${path.basename(__filename)}) e tente novamente.`,
 			);
 			await sleep(8);
 			await menu(client);
@@ -1404,7 +1405,7 @@ async function abrirDMs() {
 		return await menu(client);
 	} else {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
+		console.log(`${erro} Opção inválida, tente novamente.`);
 		await sleep(1.5);
 		await menu(client);
 	}
@@ -1420,7 +1421,7 @@ async function abrirDMsComAmigos() {
 
 	if (!amigos.length) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não tem amigos :(`);
+		console.log(`${erro} Você não tem amigos :(`);
 		await sleep(5);
 		menu(client);
 		return;
@@ -1471,7 +1472,7 @@ async function abrirTodasAsDMs() {
 	const path = await selecionarArquivoZip();
 	if (!path) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não selecionou o ZIP.`);
+		console.log(`${erro} Você não selecionou o ZIP.`);
 		await sleep(5);
 		await menu(client);
 		return;
@@ -1490,7 +1491,7 @@ async function abrirTodasAsDMs() {
 
 		for (const recipientId of pegarRecipients(channelData.recipients)) {
 			const user = await client.users.fetch(recipientId).catch(() => {});
-			await sleep(Number.parseFloat(config.delay) || 1);
+			await sleep(Number.parseFloat(config().delay) || 1);
 			await user
 				?.createDM()
 				.then(async () => {
@@ -1547,7 +1548,7 @@ async function selecionarArquivoZip() {
 		if (!fs.existsSync("package.zip")) {
 			console.clear();
 			console.log(
-				`${erro}[X]${reset} Não achei o arquivo "package.zip", coloque-o na mesma pasta que eu(${path.basename(__filename)}) e tente novamente.`,
+				`${erro} Não achei o arquivo "package.zip", coloque-o na mesma pasta que eu(${path.basename(__filename)}) e tente novamente.`,
 			);
 			await sleep(8);
 			return menu(client);
@@ -1616,20 +1617,20 @@ async function utilidadesCall() {
 
 		if (!canalOrigem || !canalDestino) {
 			console.clear();
-			console.log(`${erro}[X]${reset} ID inválido.`);
+			console.log(`${erro} ID inválido.`);
 			return sleep(3.5).then(() => menu(client));
 		}
 
 		if (!canalOrigem.members.size) {
 			console.clear();
-			console.log(`${erro}[X]${reset} A call está vazia.`);
+			console.log(`${erro} A call está vazia.`);
 			return sleep(3.5).then(() => menu(client));
 		}
 
 		for (const member of canalOrigem.members.values()) {
 			if (canalDestino.locked || canalDestino.full) {
 				console.clear();
-				console.log(`${erro}[X]${reset} A call está privada ou lotada.`);
+				console.log(`${erro} A call está privada ou lotada.`);
 				return sleep(3.5).then(() => menu(client));
 			}
 
@@ -1643,7 +1644,7 @@ async function utilidadesCall() {
 			} catch (err) {
 				if (err.message === "Missing Permissions") {
 					console.clear();
-					console.log(`${erro}[X]${reset} Você não tem permissão.`);
+					console.log(`${erro} Você não tem permissão.`);
 					return sleep(3.5).then(() => menu(client));
 				}
 			}
@@ -1666,7 +1667,7 @@ async function utilidadesCall() {
 
 		if (!["1", "2"].includes(escolha)) {
 			console.clear();
-			console.log(`${erro}[X]${reset} Opção inválida.`);
+			console.log(`${erro} Opção inválida.`);
 			return sleep(3.5).then(() => menu(client));
 		}
 
@@ -1677,15 +1678,13 @@ async function utilidadesCall() {
 
 		if (!canal || canal.type !== "GUILD_VOICE") {
 			console.clear();
-			console.log(`${erro}[X]${reset} ID inválido.`);
+			console.log(`${erro} ID inválido.`);
 			return sleep(3.5).then(() => menu(client));
 		}
 
 		if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
 			console.clear();
-			console.log(
-				`${erro}[X] ${reset}Você não tem permissão para entrar neste canal.`,
-			);
+			console.log(`${erro} Você não tem permissão para entrar neste canal.`);
 			await sleep(4.5);
 			await menu(client);
 		}
@@ -1695,7 +1694,7 @@ async function utilidadesCall() {
 			!canal.permissionsFor(canal.guild.members.me).has("MOVE_MEMBERS")
 		) {
 			console.clear();
-			console.log(`${erro}[X] ${reset}A call está lotada.`);
+			console.log(`${erro} A call está lotada.`);
 			await sleep(4.5);
 			await menu(client);
 		}
@@ -1827,7 +1826,7 @@ async function utilidadesCall() {
 
 		if (!["1", "2"].includes(escolha)) {
 			console.clear();
-			console.log(`${erro}[X]${reset} Opção inválida, tente novamente.`);
+			console.log(`${erro} Opção inválida, tente novamente.`);
 			await sleep(4);
 			return await menu(client);
 		}
@@ -1842,14 +1841,14 @@ async function utilidadesCall() {
 
 			if (!canal || canal.type !== "GUILD_VOICE") {
 				console.clear();
-				console.log(`${erro}[X]${reset} ID inválido.`);
+				console.log(`${erro} ID inválido.`);
 				await sleep(3.5);
 				return await menu(client);
 			}
 
 			if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
 				console.clear();
-				console.log(`${erro}[X]${reset} Sem permissão para entrar na call.`);
+				console.log(`${erro} Sem permissão para entrar na call.`);
 				await sleep(3.5);
 				return await menu(client);
 			}
@@ -1863,7 +1862,7 @@ async function utilidadesCall() {
 
 			if (!guild) {
 				console.clear();
-				console.log(`${erro}[X]${reset} Servidor não encontrado.`);
+				console.log(`${erro} Servidor não encontrado.`);
 				await sleep(3.5);
 				return await menu(client);
 			}
@@ -1884,7 +1883,7 @@ async function utilidadesCall() {
 
 			if (!calls.size) {
 				console.clear();
-				console.log(`${erro}[X]${reset} Nenhuma call vazia disponível.`);
+				console.log(`${erro} Nenhuma call vazia disponível.`);
 				await sleep(3.5);
 				return await menu(client);
 			}
@@ -1903,7 +1902,7 @@ async function utilidadesCall() {
 					selfVideo: false,
 				});
 			} catch (err) {
-				console.log(`${erro}[X]${reset} Erro ao conectar: ${err.message}`);
+				console.log(`${erro} Erro ao conectar: ${err.message}`);
 				await sleep(3.5);
 				return await menu(client);
 			}
@@ -1977,15 +1976,13 @@ async function utilidadesCall() {
 
 		if (!canal || canal.type !== "GUILD_VOICE") {
 			console.clear();
-			console.log(`${erro}[X]${reset} ID inválido.`);
+			console.log(`${erro} ID inválido.`);
 			return sleep(3.5).then(() => menu(client));
 		}
 
 		if (!canal.permissionsFor(canal.guild.members.me).has("CONNECT")) {
 			console.clear();
-			console.log(
-				`${erro}[X] ${reset}Você não tem permissão para entrar neste canal.`,
-			);
+			console.log(`${erro} Você não tem permissão para entrar neste canal.`);
 			await sleep(4.5);
 			return await menu(client);
 		}
@@ -1995,7 +1992,7 @@ async function utilidadesCall() {
 			!canal.permissionsFor(canal.guild.members.me).has("MOVE_MEMBERS")
 		) {
 			console.clear();
-			console.log(`${erro}[X] ${reset}A call está lotada.`);
+			console.log(`${erro} A call está lotada.`);
 			await sleep(4.5);
 			return await menu(client);
 		}
@@ -2082,13 +2079,13 @@ async function utilidadesCall() {
 
 		if (!canal) {
 			console.clear();
-			console.log(`${erro}[X]${reset} ID inválido.`);
+			console.log(`${erro} ID inválido.`);
 			return sleep(3.5).then(() => menu(client));
 		}
 
 		if (!canal.members.size) {
 			console.clear();
-			console.log(`${erro}[X]${reset} A call está vazia.`);
+			console.log(`${erro} A call está vazia.`);
 			return sleep(3.5).then(() => menu(client));
 		}
 
@@ -2101,7 +2098,7 @@ async function utilidadesCall() {
 			} catch (err) {
 				if (err.message === "Missing Permissions") {
 					console.clear();
-					console.log(`${erro}[X]${reset} Você não tem permissão.`);
+					console.log(`${erro} Você não tem permissão.`);
 					return sleep(3.5).then(() => menu(client));
 				}
 			}
@@ -2124,7 +2121,7 @@ async function utilidadesCall() {
 			return await menu(client);
 		default:
 			console.clear();
-			console.log(`${erro}[X]${reset} Opção inválida, tente novamente.`);
+			console.log(`${erro} Opção inválida, tente novamente.`);
 			return voltarMenu();
 	}
 }
@@ -2159,7 +2156,7 @@ async function triggerClear() {
 
 	let totalFiltrados = 0;
 	let msgs = [];
-	if (config.esperar_fetch === false) {
+	if (config().esperar_fetch === false) {
 		let ultimoid;
 		while (true) {
 			const fetched = await message.channel.messages.fetch({
@@ -2176,7 +2173,7 @@ async function triggerClear() {
 			totalFiltrados += msgsFiltradas.length;
 
 			for (const [index, msg] of msgsFiltradas.entries()) {
-				await sleep(parseFloat(config.delay) || 1);
+				await sleep(parseFloat(config().delay) || 1);
 				await msg
 					.delete()
 					.then(async () => {
@@ -2199,7 +2196,7 @@ async function triggerClear() {
 		msgs = await fetchMsgs(message.channel.id);
 		totalFiltrados = msgs.length;
 		for (const [index, msg] of msgs.entries()) {
-			await sleep(parseFloat(config.delay) || 1);
+			await sleep(parseFloat(config().delay) || 1);
 			await msg
 				.delete()
 				.then(async () => {
@@ -2219,7 +2216,7 @@ async function triggerClear() {
 
 	if (!totalFiltrados) {
 		console.clear();
-		console.log(`${erro}[X]${reset} Você não tem mensagens ai.`);
+		console.log(`${erro} Você não tem mensagens ai.`);
 		await sleep(3.5);
 		menu(client);
 		return;
@@ -2243,7 +2240,7 @@ async function scraperIcons() {
 	if (opcao === "4") return await menu(client);
 	if (!["1", "2", "3"].includes(opcao)) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
+		console.log(`${erro} Opção inválida, tente novamente.`);
 		await sleep(1.5);
 		await menu(client);
 	}
@@ -2261,7 +2258,7 @@ async function scraperIcons() {
 
 	if (!canal_icons) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Este ID é inválido.`);
+		console.log(`${erro} Este ID é inválido.`);
 		await sleep(3.5);
 		await menu(client);
 	}
@@ -2273,7 +2270,7 @@ async function scraperIcons() {
 	) {
 		console.clear();
 		console.log(
-			`${erro}[X] ${reset}Você não tem permissão para ler mensagens neste canal.`,
+			`${erro} Você não tem permissão para ler mensagens neste canal.`,
 		);
 		await sleep(4.5);
 		await menu(client);
@@ -2285,7 +2282,7 @@ async function scraperIcons() {
 
 	if (!canal_envio) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Este ID é inválido.`);
+		console.log(`${erro} Este ID é inválido.`);
 		await sleep(3.5);
 		await menu(client);
 	}
@@ -2297,7 +2294,7 @@ async function scraperIcons() {
 	) {
 		console.clear();
 		console.log(
-			`${erro}[X] ${reset}Você não tem permissão para enviar mensagens ou arquivos neste canal.`,
+			`${erro} Você não tem permissão para enviar mensagens ou arquivos neste canal.`,
 		);
 		await sleep(4.5);
 		await menu(client);
@@ -2376,9 +2373,7 @@ async function scraperIcons() {
 							client,
 						);
 					} catch (err) {
-						console.log(
-							`${erro}[!] ${reset}Erro ao enviar um arquivo: ${err.message}`,
-						);
+						console.log(`${erro} Erro ao enviar um arquivo: ${err.message}`);
 					}
 				}
 			}
@@ -2400,7 +2395,7 @@ async function clonarServidores() {
 
 	if (!guildOriginal) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Servidor original não encontrado.`);
+		console.log(`${erro} Servidor original não encontrado.`);
 		await sleep(3);
 		return await menu(client);
 	}
@@ -2411,7 +2406,7 @@ async function clonarServidores() {
 
 	if (!guildNovo) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Servidor de destino não encontrado.`);
+		console.log(`${erro} Servidor de destino não encontrado.`);
 		await sleep(3);
 		return await menu(client);
 	}
@@ -2444,22 +2439,20 @@ async function clonarServidores() {
 
 		for (const emoji of guildNovo.emojis.cache.values()) {
 			await emoji.delete().catch(() => {
-				console.log(`${erro}[X] ${reset}Erro ao deletar emoji: ${emoji.name}`);
+				console.log(`${erro} Erro ao deletar emoji: ${emoji.name}`);
 			});
 		}
 
 		await guildNovo.stickers.fetch().catch(() => {});
 		for (const sticker of guildNovo.stickers.cache.values()) {
 			await sticker.delete().catch(() => {
-				console.log(
-					`${erro}[X] ${reset}Erro ao deletar sticker: ${sticker.name}`,
-				);
+				console.log(`${erro} Erro ao deletar sticker: ${sticker.name}`);
 			});
 		}
 
 		for (const canal of guildNovo.channels.cache.values()) {
 			await canal.delete().catch(() => {
-				console.log(`${erro}[X] ${reset}Erro ao deletar canal: ${canal.name}`);
+				console.log(`${erro} Erro ao deletar canal: ${canal.name}`);
 			});
 		}
 
@@ -2468,7 +2461,7 @@ async function clonarServidores() {
 		);
 		for (const cargo of cargosParaExcluir.values()) {
 			await cargo.delete().catch(() => {
-				console.log(`${erro}[X] ${reset}Erro ao deletar cargo: ${cargo.name}`);
+				console.log(`${erro} Erro ao deletar cargo: ${cargo.name}`);
 			});
 		}
 
@@ -2580,7 +2573,7 @@ async function clonarServidores() {
 			if (!res.ok) {
 				const text = await res.text();
 				console.log(
-					`${erro}[X]${reset} Erro ao criar sticker ${sticker.value.name}: ${text}`,
+					`${erro} Erro ao criar sticker ${sticker.value.name}: ${text}`,
 				);
 			}
 		}
@@ -2589,9 +2582,7 @@ async function clonarServidores() {
 			try {
 				await guildNovo.emojis.create(emoji.url, emoji.name);
 			} catch (e) {
-				console.log(
-					`${erro}[X] ${reset}Erro ao clonar emoji ${emoji.name}: ${e.message}`,
-				);
+				console.log(`${erro} Erro ao clonar emoji ${emoji.name}: ${e.message}`);
 			}
 		}
 
@@ -2611,7 +2602,7 @@ async function backupMensagens() {
 
 	if (!canal) {
 		console.clear();
-		console.log(`${erro}[X] ${reset}Este ID é inválido.`);
+		console.log(`${erro} Este ID é inválido.`);
 		await sleep(3.5);
 		await menu(client);
 	}
@@ -2619,7 +2610,7 @@ async function backupMensagens() {
 	if (!canal?.isText()) {
 		console.clear();
 		console.log(
-			`${erro}[X] ${reset}O canal deve ser baseado em texto para fazer backup de mensagens.`,
+			`${erro} O canal deve ser baseado em texto para fazer backup de mensagens.`,
 		);
 		await sleep(5);
 		await menu(client);
@@ -2737,7 +2728,7 @@ async function menu(client) {
 		if (selectedOption) {
 			await selectedOption.action();
 		} else {
-			console.log(`${erro}[X] ${reset}Opção inválida, tente novamente.`);
+			console.log(`${erro} Opção inválida, tente novamente.`);
 			await sleep(2.5);
 		}
 	}
@@ -2762,8 +2753,8 @@ async function checarUpdates() {
 async function iniciarCliente() {
 	console.clear();
 
-	const tokensValidos = await validarTokens(config.tokens);
-	if (tokensValidos.length) return await selecionarToken(tokensValidos, config);
+	const tokensValidos = await validarTokens(config().tokens);
+	if (tokensValidos.length) return await selecionarToken(tokensValidos);
 
 	const tokensMenu = ["Adicionar token manualmente"];
 	const opcoes = { 1: "manual" };
@@ -2797,18 +2788,22 @@ async function iniciarCliente() {
 			for (const token of encontrados) {
 				const validacao = await validarToken(token);
 				if (validacao) {
-					const duplicado = config.tokens.find((t) => t.token === token);
+					const configData = config();
+					const duplicado = configData.tokens.find((t) => t.token === token);
 					if (!duplicado) {
-						config.tokens.push({
+						configData.tokens.push({
 							nome: validacao,
 							token,
 						});
 						adicionados++;
+						fs.writeFileSync(
+							"config.json",
+							JSON.stringify(configData, null, 4),
+						);
 					}
 				}
 			}
 
-			fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
 			console.clear();
 			console.log(
 				`${cor}[+]${reset} ${adicionados} token(s) adicionadas automaticamente.\n`,
@@ -2821,7 +2816,7 @@ async function iniciarCliente() {
 
 		default:
 			console.clear();
-			console.log(`${erro}[X]${reset} Opção inválida.`);
+			console.log(`${erro} Opção inválida.`);
 			await sleep(2);
 			return iniciarCliente();
 	}
@@ -2847,7 +2842,7 @@ async function validarTokens(tokens) {
 	return tokensValidos;
 }
 
-async function selecionarToken(tokensValidos, config) {
+async function selecionarToken(tokensValidos) {
 	process.title = "147Clear | Selecionar token";
 	console.clear();
 	console.log(`  Escolha uma token para logar.\n`);
@@ -2871,14 +2866,14 @@ async function selecionarToken(tokensValidos, config) {
 			await pedirToken();
 			return iniciarCliente();
 		case tokensValidos.length + 2:
-			await removerToken(tokensValidos, config);
+			await removerToken(tokensValidos);
 			return iniciarCliente();
 		default:
 			await logarToken(tokensValidos, opcao);
 	}
 }
 
-async function removerToken(tokensValidos, config) {
+async function removerToken(tokensValidos) {
 	console.clear();
 	console.log(`  Escolha uma token para remover.\n`);
 	tokensValidos.forEach((t, index) => {
@@ -2889,12 +2884,15 @@ async function removerToken(tokensValidos, config) {
 
 	if (indiceTokenRemover >= 0 && indiceTokenRemover < tokensValidos.length) {
 		const tokenRemover = tokensValidos[indiceTokenRemover];
-		config.tokens = config.tokens.filter((t) => t.token !== tokenRemover.token);
-		fs.writeFileSync("config.json", JSON.stringify(config, null, 4));
-		console.log(`Token "${tokenRemover.nome}" removida com sucesso.\n`);
+		const configData = config();
+		configData.tokens = configData.tokens.filter(
+			(t) => t.token !== tokenRemover.token,
+		);
+		fs.writeFileSync("config.json", JSON.stringify(configData, null, 4));
+		console.log(`Token \"${tokenRemover.nome}\" removida com sucesso.\n`);
 	} else {
 		console.clear();
-		console.log(`${erro}[X]${reset} Opção inválida.`);
+		console.log(`${erro} Opção inválida.`);
 		await sleep(5);
 	}
 }
