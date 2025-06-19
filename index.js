@@ -40,7 +40,7 @@ const esperarEnter = () => {
 const clientId = config().rpc.id_aplicacao || "1257500388408692800";
 let encontrarTokens;
 
-const vermelho = "\x1b[31m";
+const vermelho = process.stdout.isTTY ? "\x1b[31m" : "";
 const ativo = process.stdout.isTTY ? hex("#19e356") : "";
 const cor = process.stdout.isTTY ? hex(config().cor_painel || "#A020F0") : "";
 const reset = process.stdout.isTTY ? "\x1b[0m" : "";
